@@ -85,7 +85,7 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter basename="/graduation-project-frontend">
+          <BrowserRouter>
             <AuthProvider>
               <NavbarController />
               <Routes>
