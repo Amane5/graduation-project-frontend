@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import PlayfulBackground from "@/components/PlayfulBackground";
 
@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { getChildren } from "@/lib/children";
-import { getChildReport } from "@/lib/reports";
+import { getChatReport, getChildReport } from "@/lib/reports";
 
 import {
   BookOpen,
@@ -40,42 +40,49 @@ type Report = {
   };
 };
 
+type ChatReport = {
+  id: number;
+  childId: number;
+  createdAt: string;
+
+  curiosityAvg: number;
+  creativityAvg: number;
+  analyticalAvg: number;
+
+  topCategories: string[];
+ topSubcategories: string[];
+
+  recommendations: string[];
+  emotionalSummary?: string | null;
+  insights?: any;
+};
+
 export default function Reports()  {
   const navigate = useNavigate();
 
-  const [children, setChildren] = useState<any[]>([]);
-  const [selectedChild, setSelectedChild] = useState<number | null>(null);
+  const [storyReports, setStoryReports] = useState<Report[]>([]);
 
-  const [reports, setReports] = useState<Report[]>([]);
+  const [chatReport, setChatReport] = useState<ChatReport | null>(null);
 
   const [loading, setLoading] = useState(false);
 
-  //useeffect to get children's names and select a child
-    useEffect(() => {
-    const loadChildren = async () => {
-      try {
-        const res = await getChildren();
+  const [activeTab, setActiveTab] = useState<"story" | "chat">("story");
 
-        setChildren(res.data || []);
+  const { childId } = useParams();
 
-        if (res.data?.length > 0) {
-          setSelectedChild(res.data[0].id);
-        }
-      } catch (err) {
-        console.log(err);
-      }
-    };
+  const location = useLocation();
 
-    loadChildren();
-  }, []);
-  //useeffect to get reports 
+  const childName = location.state?.childName;
+
+  //useeffect to get story reports 
   useEffect(() => {
-    if(!selectedChild) return
+     if (!childId) return;
+     if (activeTab !== "story") return;
     const loadReports = async () => {
         try{
             setLoading(true)
-            const res = await getChildReport(selectedChild)
-            setReports(res.data.reports || "")
+            const res = await getChildReport(Number(childId))
+            setStoryReports(res.data.reports || [])
 
         }catch(err){
             console.log(err)
@@ -84,16 +91,48 @@ export default function Reports()  {
         }
     }
     loadReports()
-  },[selectedChild])
+  },[childId, activeTab])
 
-    const stats = useMemo(() => {
-    const storiesCount = reports.length;
+  // useeffect to get chat reports
+  useEffect(() => {
+    if (!childId) return;
+    if (activeTab !== "chat") return;
+
+    const load = async () => {
+      try {
+        setLoading(true);
+
+        const res = await getChatReport(Number(childId));
+console.log(res);
+        setChatReport(res.data || null);
+      } catch (err) {
+        console.log(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [childId, activeTab]);
+
+  const chatStats = {
+  curiosity: Math.round(chatReport?.curiosityAvg || 0),
+  creativity: Math.round(chatReport?.creativityAvg || 0),
+  analytical: Math.round(chatReport?.analyticalAvg || 0),
+  topCategories: chatReport?.topCategories || [],
+  topSubcategories: chatReport?.topSubcategories || [],
+  recommendations: chatReport?.recommendations || [],
+  emotionalSummary: chatReport?.emotionalSummary || null,
+  };
+
+  const stats = useMemo(() => {
+    const storiesCount = storyReports.length;
 
     const avgScore =
       storiesCount === 0
         ? 0
         : Math.round(
-            reports.reduce(
+            storyReports.reduce(
               (acc, r) => acc + r.overallScore,
               0
             ) / storiesCount
@@ -103,7 +142,7 @@ export default function Reports()  {
       storiesCount === 0
         ? 0
         : Math.round(
-            reports.reduce(
+            storyReports.reduce(
               (acc, r) =>
                 acc + r.goalAchievement,
               0
@@ -115,7 +154,7 @@ export default function Reports()  {
       avgScore,
       avgGoal,
     };
-  }, [reports]);
+  }, [storyReports]);
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -124,73 +163,73 @@ export default function Reports()  {
 
     <div className="max-w-6xl mx-auto px-4 py-8">
 
-        <h1 className="text-4xl font-bold mb-6">
-        Reports 📊
-        </h1>
+      <h1 className="text-4xl font-bold mb-6">
+        {childName} Reports 📊
+      </h1>
 
-        <Select
-        value={
-            selectedChild
-            ? String(selectedChild)
-            : ""
-        }
-        onValueChange={(value) =>
-            setSelectedChild(Number(value))
-        }
-        >
-        <SelectTrigger className="w-[250px] mb-8">
-            <SelectValue placeholder="Choose child" />
-        </SelectTrigger>
+    <div className="flex gap-2 mb-6">
+    <button
+      onClick={() => setActiveTab("story")}
+      className={`px-4 py-2 rounded-xl border transition ${
+        activeTab === "story"
+          ? "bg-primary text-white"
+          : "bg-card"
+      }`}
+    >
+      Story
+    </button>
 
-        <SelectContent>
-            {children.map((child) => (
-            <SelectItem
-                key={child.id}
-                value={String(child.id)}
-            >
-                {child.firstName}
-            </SelectItem>
-            ))}
-        </SelectContent>
-        </Select>
-    <div className="grid md:grid-cols-3 gap-4 mb-8">
+    <button
+      onClick={() => setActiveTab("chat")}
+      className={`px-4 py-2 rounded-xl border transition ${
+        activeTab === "chat"
+          ? "bg-primary text-white"
+          : "bg-card"
+      }`}
+    >
+      Chat
+    </button>
+  </div>
+   
+    {loading && <div>Loading...</div>}
 
-    <div className="bg-card rounded-2xl p-5 border">
-    <BookOpen className="mb-2" />
-    <p className="text-sm text-muted-foreground">
-        Stories
-    </p>
-    <h2 className="text-3xl font-bold">
-        {stats.storiesCount}
-    </h2>
+    {!loading && activeTab === "story" && (
+      
+      <div className="grid gap-4">
+         <div className="grid md:grid-cols-3 gap-4 mb-8">
+
+      <div className="bg-card rounded-2xl p-5 border">
+        <BookOpen className="mb-2" />
+        <p className="text-sm text-muted-foreground">
+            Stories
+        </p>
+        <h2 className="text-3xl font-bold">
+            {stats.storiesCount}
+        </h2>
+      </div>
+
+      <div className="bg-card rounded-2xl p-5 border">
+        <Trophy className="mb-2" />
+        <p className="text-sm text-muted-foreground">
+            Average Score
+        </p>
+        <h2 className="text-3xl font-bold">
+            {stats.avgScore}%
+        </h2>
+      </div>
+
+      <div className="bg-card rounded-2xl p-5 border">
+        <Target className="mb-2" />
+        <p className="text-sm text-muted-foreground">
+            Goal Achievement
+        </p>
+        <h2 className="text-3xl font-bold">
+            {stats.avgGoal}%
+        </h2>
+      </div>
+
     </div>
-
-    <div className="bg-card rounded-2xl p-5 border">
-    <Trophy className="mb-2" />
-    <p className="text-sm text-muted-foreground">
-        Average Score
-    </p>
-    <h2 className="text-3xl font-bold">
-        {stats.avgScore}%
-    </h2>
-    </div>
-
-    <div className="bg-card rounded-2xl p-5 border">
-    <Target className="mb-2" />
-    <p className="text-sm text-muted-foreground">
-        Goal Achievement
-    </p>
-    <h2 className="text-3xl font-bold">
-        {stats.avgGoal}%
-    </h2>
-    </div>
-
-    </div>
-    {loading ? (
-    <div>Loading...</div>
-    ) : (
-    <div className="grid gap-4">
-        {reports.map((report) => (
+        {storyReports.map((report) => (
         <div
             key={report.id}
             className="bg-card border rounded-2xl p-5"
@@ -238,7 +277,104 @@ export default function Reports()  {
             </div>
         </div>
         ))}
+      </div>
+    )}
+      
+    {!loading && activeTab === "chat" && (
+      <div className="bg-card border rounded-2xl p-6 text-center">
+        <div className="grid gap-4">
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
+    
+      <div className="bg-card border rounded-2xl p-5">
+        <p className="text-sm text-muted-foreground">Curiosity</p>
+        <h2 className="text-3xl font-bold">{chatStats.curiosity}</h2>
+      </div>
+
+      <div className="bg-card border rounded-2xl p-5">
+        <p className="text-sm text-muted-foreground">Creativity</p>
+        <h2 className="text-3xl font-bold">{chatStats.creativity}</h2>
+      </div>
+
+      <div className="bg-card border rounded-2xl p-5">
+        <p className="text-sm text-muted-foreground">Analytical</p>
+        <h2 className="text-3xl font-bold">{chatStats.analytical}</h2>
+      </div>
     </div>
+
+
+      {/* Top Interests */}
+    <div className="bg-card border rounded-2xl p-5">
+      <h3 className="font-bold mb-3">Top Interests</h3>
+
+      <div className="flex flex-wrap gap-2">
+        {chatStats.topCategories.map((cat) => (
+          <span
+            key={cat}
+            className="px-3 py-1 rounded-full bg-primary/10 text-primary"
+          >
+            {cat}
+          </span>
+        ))}
+      </div>
+    </div>
+
+      {/* Top Subcategories */}
+      <div className="bg-card border rounded-2xl p-5">
+        <h3 className="font-bold mb-3">
+          Top Subcategories
+        </h3>
+
+        <div className="flex flex-wrap gap-2">
+          {chatReport?.topSubcategories?.map((sub) => (
+            <span
+              key={sub}
+              className="px-3 py-1 rounded-full bg-secondary"
+            >
+              {sub}
+            </span>
+          ))}
+        </div>
+
+        
+      </div>
+
+      {/* emotional */}
+      <div className="bg-card border rounded-2xl p-5">
+          <h3 className="font-bold mb-3">
+            Emotional Summary
+          </h3>
+
+          <p className="text-muted-foreground">
+            {chatReport?.emotionalSummary ||
+              "Not enough emotional signals yet"}
+          </p>
+      </div>
+
+
+      {chatStats.recommendations.length > 0 && (
+      <div className="bg-card border rounded-2xl p-5">
+        <h3 className="font-bold mb-3">Recommendations</h3>
+
+        <div className="flex flex-wrap gap-2">
+          {chatStats.recommendations.map((rec) => (
+            <span key={rec} className="px-3 py-1 rounded-full bg-primary/10 text-primary">
+              {rec}
+            </span>
+          ))}
+        </div>
+      </div>
+      )}
+
+      {/* <div className="bg-card border rounded-2xl p-5">
+        <h3 className="font-bold mb-2">Chat Insights</h3>
+
+        <p className="text-muted-foreground">
+          Based on conversations, your child shows patterns in:
+          curiosity, learning behavior, and preferred topics.
+        </p>
+      </div> */}
+  </div>
+      </div>
     )}
     </div>
     </div>

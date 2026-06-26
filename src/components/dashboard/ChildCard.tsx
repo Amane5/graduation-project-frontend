@@ -6,10 +6,14 @@ interface Props {
   child: Child;
   onEdit: () => void;
   onDelete: () => void;
+  onReports: () => void;
+
   delay?: number;
+
 }
 
-const ChildCard = ({ child, onEdit, onDelete, delay = 0 }: Props) => {
+
+const ChildCard = ({ child, onEdit, onDelete, onReports, delay = 0 }: Props) => {
   const age = calcAge(child.birthdate);
 
   return (
@@ -52,6 +56,26 @@ const ChildCard = ({ child, onEdit, onDelete, delay = 0 }: Props) => {
           >
             <Trash2 className="w-4 h-4" />
             Delete
+          </button>
+          <button
+            onClick={onReports}
+            className="
+              flex-1 inline-flex
+              items-center
+              justify-center
+              gap-1.5
+              h-10
+              rounded-xl
+              border-2
+              border-primary/20
+              text-primary
+              text-sm
+              font-semibold
+              hover:bg-primary/10
+              transition-all
+            "
+          >
+            Reports
           </button>
         </div>
       </div>

@@ -143,3 +143,49 @@ export const deleteStory = async (storyId:number) => {
   )
   return await res.json()
 }
+
+export const generateQuestionAudio = async (questionId: number) => {
+  const token = localStorage.getItem("accessToken");
+
+  const res = await fetch(
+    `${import.meta.env.VITE_API_URL}/questions/${questionId}/tts`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+    }
+  );
+
+  return await res.json();
+};
+
+export const speechToTextQuestion = async (
+  questionId: number,
+  audioBlob: Blob
+) => {
+  const token = localStorage.getItem("accessToken");
+
+  const formData = new FormData();
+
+  formData.append(
+    "audio",
+    audioBlob,
+    "answer.webm"
+  );
+
+  const res = await fetch(
+    `${import.meta.env.VITE_API_URL}/questions/${questionId}/speech-to-text`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: token
+          ? `Bearer ${token}`
+          : "",
+      },
+      body: formData,
+    }
+  );
+
+  return await res.json();
+};

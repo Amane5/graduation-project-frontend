@@ -7,7 +7,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PublicOnlyRoute from "@/components/PublicOnlyRoute";
-import Index, { HomeRedirect } from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Register from "./pages/Register.tsx";
 import Login from "@/pages/Login";
@@ -31,6 +30,13 @@ import { useEffect } from "react";
 import i18n from "./i18n/i18n.ts";
 import Reports from "./pages/Reports.tsx";
 import StoryReport from "./pages/StoryReport.tsx";
+import Challenges from "./pages/Challenges.tsx";
+import CreateChallenge from "./pages/CreateChallenge.tsx";
+import ChallengeDetails from "./pages/ChallengeDetails.tsx";
+import EditChallenge from "./pages/EditChallenge.tsx";
+import ActiveChallenges from "./pages/ActiveChallenges.tsx";
+import PlayChallenge from "./pages/PlayChallenge.tsx";
+import ChallengeResults from "./pages/ChallengeResults.tsx";
 const queryClient = new QueryClient();
 
 const NavbarController = () => {
@@ -220,7 +226,7 @@ const App = () => {
                 />
 
                 <Route
-                  path="/reports"
+                  path="/reports/:childId"
                   element={
                     <ProtectedRoute allow={["parent"]}>
                       <Reports />
@@ -236,14 +242,68 @@ const App = () => {
                     </ProtectedRoute>
                   }
                 />
-                {/* <Route
-                path="/conversation/:id?"
-                element={
-                  <ProtectedRoute allow={["parent", "child"]}>
-                    <Chat />
-                  </ProtectedRoute>
-                }
-              /> */}
+                <Route
+                  path="/challenges"
+                  element={
+                    <ProtectedRoute allow={["parent"]}>
+                      <Challenges />
+                    </ProtectedRoute>
+                  }
+                />
+
+                 <Route
+                  path="/challenges/create"
+                  element={
+                    <ProtectedRoute allow={["parent"]}>
+                      <CreateChallenge />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/challenge/:id"
+                  element={
+                    <ProtectedRoute allow={["parent"]}>
+                      <ChallengeDetails />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/challenge/:id/edit"
+                  element={
+                    <ProtectedRoute allow={["parent"]}>
+                      <EditChallenge />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/my-challenges"
+                  element={
+                    <ProtectedRoute allow={["child"]}>
+                      <ActiveChallenges />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/challenge/:id/play"
+                  element={
+                    <ProtectedRoute allow={["child"]}>
+                      <PlayChallenge />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/challenge/:id/results"
+                  element={
+                    <ProtectedRoute allow={["child"]}>
+                      <ChallengeResults />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

@@ -21,3 +21,15 @@ export const getStoryReport = async (storyId:number) => {
     })
     return  res.json()
 }
+
+export const getChatReport = async (childId:number) => {
+    const token = localStorage.getItem("accessToken")
+    const url = `${import.meta.env.VITE_API_URL}/analytics/report/${childId}`;
+    const res = await fetch(url,{
+        method:"GET",
+        headers:{
+            Authorization:token?`Bearer ${token}`: ''
+        }
+    })
+    return res.json()
+}

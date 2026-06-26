@@ -186,6 +186,13 @@ const Dashboard = () => {
                       navigate(`/edit-child/${child.id}`, { state: child })
                     }
                     onDelete={() => setDeleting(child)}
+                     onReports={() =>
+                      navigate(`/reports/${child.id}`, {
+                        state: {
+                          childName: `${child.firstName} ${child.lastName}`,
+                        },
+                      })
+                    }
                     delay={i * 80}
                   />
                 ))}
@@ -235,8 +242,8 @@ const Dashboard = () => {
               />
 
               <QuickActionCard
-                to="/reports"
-                label={t("reports")}
+                to="/challenges"
+                label={t("challenges")}
                 description={t("viewChildProgress")}
                 icon={BarChart3}
                 gradient="from-emerald-500 to-green-500"

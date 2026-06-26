@@ -89,6 +89,19 @@ const ChatSidebar = ({
             <BookOpen className="w-4 h-4" />
             My Stories
           </Button>
+
+          <Button
+            variant="hero"
+            size="sm"
+            className="w-full rounded-2xl"
+            onClick={() => {
+              navigate("/my-challenges");
+              onClose();
+            }}
+          >
+            <BookOpen className="w-4 h-4" />
+            My Challenges
+          </Button>
         </div>
 
         {/* List */}
