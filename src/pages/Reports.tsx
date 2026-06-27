@@ -287,17 +287,17 @@ console.log(res);
     
       <div className="bg-card border rounded-2xl p-5">
         <p className="text-sm text-muted-foreground">Curiosity</p>
-        <h2 className="text-3xl font-bold">{chatStats.curiosity}</h2>
+        <h2 className="text-3xl font-bold">{chatStats.curiosity}/5</h2>
       </div>
 
       <div className="bg-card border rounded-2xl p-5">
         <p className="text-sm text-muted-foreground">Creativity</p>
-        <h2 className="text-3xl font-bold">{chatStats.creativity}</h2>
+        <h2 className="text-3xl font-bold">{chatStats.creativity}/5</h2>
       </div>
 
       <div className="bg-card border rounded-2xl p-5">
         <p className="text-sm text-muted-foreground">Analytical</p>
-        <h2 className="text-3xl font-bold">{chatStats.analytical}</h2>
+        <h2 className="text-3xl font-bold">{chatStats.analytical}/5</h2>
       </div>
     </div>
 

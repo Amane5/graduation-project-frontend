@@ -48,35 +48,10 @@ const NavbarController = () => {
 
   return <AppNavbar />;
 };
-// async function requestNotificationPermission(){
-//   const permission= await Notification.requestPermission()
-//   const authToken = localStorage.getItem("accessToken")
-//   if(permission !== 'granted') return
-//   const token = await getToken (messaging , {
-//     vapidKey:import.meta.env.VITE_FIREBASE_VAPID_KEY,
-//   })
-//   localStorage.setItem("fcmToken",token)
-//   console.log("AUTH TOKEN:", authToken);
-//   await fetch(
-//   `${import.meta.env.VITE_API_URL}/ai/fcm-token`,
-//   {
-//     method: "POST",
-//     headers: {
-//       "Content-Type": "application/json",
-//       Authorization: `Bearer ${authToken}`,
-//     },
-//     body: JSON.stringify({
-//       token,
-//     }),
-//   }
-// );
-//     console.log("FCM Token:", token);
-// }
+
 const App = () => {
   useFirebaseNotifications();
-  //  useEffect(() => {
-  //   requestNotificationPermission();
-  // }, []);
+
   useEffect(() => {
     const savedLang = localStorage.getItem("language") || "en";
 

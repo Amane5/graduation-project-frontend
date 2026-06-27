@@ -211,8 +211,7 @@ const ChallengeDetails = () => {
                       <div>
                         <p className="font-medium">
                           {
-                            participant.child
-                              ?.firstName
+                            participant?.firstName
                           }
                         </p>
 
@@ -294,6 +293,47 @@ const ChallengeDetails = () => {
 
                             <CheckCircle className="w-4 h-4 text-green-500" />
                           </div>
+
+                          {question.answers?.length > 0 && (
+                            <div className="mt-5 space-y-3">
+                              <h4 className="font-semibold text-sm">
+                                Children's Answers
+                              </h4>
+
+                              {question.answers.map((answer: any) => (
+                                <div
+                                  key={answer.childId}
+                                  className={`rounded-lg border p-3 ${
+                                    answer.isCorrect
+                                      ? "bg-green-50 border-green-300"
+                                      : "bg-red-50 border-red-300"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium">
+                                      {answer.childName}'s Answer
+                                    </span>
+
+                                    <Badge
+                                      variant={
+                                        answer.isCorrect
+                                          ? "default"
+                                          : "destructive"
+                                      }
+                                    >
+                                      {answer.isCorrect
+                                        ? `+${answer.earnedPoints} pts`
+                                        : "Wrong"}
+                                    </Badge>
+                                  </div>
+
+                                  <p className="text-muted-foreground">
+                                    {answer.answer}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

@@ -59,7 +59,7 @@ const formSchema = z
     startAt: z.string(),
 
     endAt: z.string(),
-    participantIds: z.array(z.number())
+    // participantIds: z.array(z.number())
   })
   .refine(
     (data) =>
@@ -135,7 +135,7 @@ const EditChallenge = () => {
       description: "",
       startAt: "",
       endAt: "",
-      participantIds: [],
+      // participantIds: [],
     },
   });
 
@@ -168,10 +168,10 @@ useEffect(() => {
 
   setParticipantIds(
     challenge.participants.map(
-      (p: any) => p.childId
+      (p: any) => p.id
     )
   );
-
+console.log(challenge.participants);
   setQuestions(
     challenge.questions.map(
       (q: any) => ({
@@ -377,12 +377,12 @@ useEffect(() => {
 
       questions,
     };
-
-    const res =
-      await updateChallenge(Number(id), payload)
+console.log(payload);
+console.log(participantIds);
+    const res = await updateChallenge(Number(id), payload)
 
     toast.success(
-      "Challenge created successfully"
+      "Challenge updated successfully"
     );
 console.log(res);
     navigate(
@@ -401,10 +401,13 @@ console.log(res);
 
 const now = new Date();
 
-const isActive =
+const isActive = challenge &&
   now >= new Date(challenge.startAt) &&
   now <= new Date(challenge.endAt);
+const isFinished = challenge &&
+  now > new Date(challenge.endAt);
 
+const cannotEdit = isActive || isFinished;
 if (isLoading) {
   return (
     <div className="flex items-center justify-center min-h-screen">
@@ -423,11 +426,13 @@ if (isLoading) {
               Edit Challenge
             </h1>
             {
-            isActive && (
+            cannotEdit && (
                 <Card className="border-red-500">
                 <CardContent className="py-4">
                     <p className="text-red-500 font-medium">
-                    This challenge is currently active and cannot be edited.
+                    {isActive
+                    ? "This challenge is currently active and cannot be edited."
+                    : "This challenge has already ended and cannot be edited."}
                     </p>
                 </CardContent>
                 </Card>
@@ -449,7 +454,7 @@ if (isLoading) {
 
                 <CardContent className="space-y-5">
                   <FormField
-                  disabled={isActive}
+                  disabled={cannotEdit}
                     control={form.control}
                     name="title"
                     render={({ field }) => (
@@ -481,7 +486,7 @@ if (isLoading) {
 
                         <FormControl>
                           <Textarea
-                          disabled={isActive}
+                          disabled={cannotEdit}
                             placeholder="Challenge description..."
                             {...field}
                           />
@@ -539,7 +544,7 @@ if (isLoading) {
                             </div>
 
                             <input
-                            disabled={isActive}
+                            disabled={cannotEdit}
                               type="checkbox"
                               checked={participantIds.includes(
                                 child.id
@@ -623,7 +628,7 @@ if (isLoading) {
 
                 <CardContent className="grid md:grid-cols-2 gap-5">
                   <FormField
-                    disabled={isActive}
+                    disabled={cannotEdit}
                     control={form.control}
                     name="startAt"
                     render={({
@@ -647,7 +652,7 @@ if (isLoading) {
                   />
 
                   <FormField
-                    disabled={isActive}
+                    disabled={cannotEdit}
                     control={form.control}
                     name="endAt"
                     render={({
@@ -681,7 +686,7 @@ if (isLoading) {
 
                     <div className="flex gap-2">
                         <Button
-                        disabled={isActive}
+                        disabled={cannotEdit}
                         type="button"
                         variant="outline"
                         onClick={
@@ -693,7 +698,7 @@ if (isLoading) {
                         </Button>
 
                         <Button
-                        disabled={isActive}
+                        disabled={cannotEdit}
                         type="button"
                         onClick={addQuestion}
                         >
@@ -717,7 +722,7 @@ if (isLoading) {
                             </h3>
 
                             <Button
-                                disabled={isActive}
+                                disabled={cannotEdit}
                                 type="button"
                                 size="icon"
                                 variant="ghost"
@@ -732,7 +737,7 @@ if (isLoading) {
                             </div>
 
                             <Input
-                            disabled={isActive}
+                            disabled={cannotEdit}
                             placeholder="Question"
                             value={
                                 question.question
@@ -747,7 +752,7 @@ if (isLoading) {
                             />
 
                             <Textarea
-                            disabled={isActive}
+                            disabled={cannotEdit}
                             placeholder="Expected Answer"
                             value={
                                 question.expectedAnswer
@@ -762,7 +767,7 @@ if (isLoading) {
                             />
 
                             <Input
-                            disabled={isActive}
+                            disabled={cannotEdit}
                             type="number"
                             min={1}
                             value={
@@ -780,7 +785,7 @@ if (isLoading) {
                             />
 
                             <Button
-                            disabled={isActive}
+                            disabled={cannotEdit}
                             type="button"
                             variant="secondary"
                             onClick={() =>
@@ -804,7 +809,7 @@ if (isLoading) {
                     <Button
                         type="submit"
                         size="lg"
-                        disabled={loading || isActive}
+                        disabled={loading || cannotEdit}
                     >
                         {loading
                         ? "Saving..."

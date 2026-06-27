@@ -53,32 +53,48 @@ const ChallengeResults = () => {
     );
   }
   
-    if (result.status === "pending") {
-    return (
-        <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-            <h2 className="text-xl font-bold">
-            Challenge not finished yet
-            </h2>
-            <p className="text-muted-foreground mt-2">
-            Waiting for all participants to complete.
-            </p>
-        </div>
-        </div>
-    );
-    }
+    // if (result.status === "pending") {
+    // return (
+    //     <div className="min-h-screen flex items-center justify-center">
+    //     <div className="text-center">
+    //         <h2 className="text-xl font-bold">
+    //         Challenge not finished yet
+    //         </h2>
+    //         <p className="text-muted-foreground mt-2">
+    //         Waiting for all participants to complete.
+    //         </p>
+    //     </div>
+    //     </div>
+    // );
+    // }
+    console.log(result);
+console.log(result.answers);
   return (
     <div className="min-h-screen bg-background relative">
       <PlayfulBackground />
 
-      {result.isWinner && <Confetti />}
+      {result.status !== "pending" && result.isWinner && <Confetti />}
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-8">
+      {result.status === "pending" && (
+        <Card className="mb-6 border-yellow-300 bg-yellow-50">
+          <CardContent className="py-6 text-center">
+            <h2 className="text-xl font-bold">
+              ⏳ Challenge Still Running
+            </h2>
 
+            <p className="text-muted-foreground mt-2">
+              You have completed the challenge successfully.
+              <br />
+              Final results will be available after all participants finish.
+            </p>
+          </CardContent>
+        </Card>
+      )}
         <Card className="mb-8 shadow-soft">
           <CardContent className="py-10 text-center">
 
-            {result.isWinner ? (
+            {result.status !== "pending" && result.isWinner ? (
               <>
                 <Trophy className="w-20 h-20 mx-auto text-yellow-500 mb-4" />
 
@@ -90,7 +106,7 @@ const ChallengeResults = () => {
                   You are one of the winners!
                 </p>
               </>
-            ) : (
+            ) : result.status !== "pending" ?(
               <>
                 <Star className="w-20 h-20 mx-auto text-primary mb-4" />
 
@@ -102,13 +118,25 @@ const ChallengeResults = () => {
                   You completed the challenge.
                 </p>
               </>
+            ) : (
+              <>
+              <Star className="w-20 h-20 mx-auto text-primary mb-4" />
+
+              <h1 className="text-4xl font-bold mb-3">
+                ✅ Challenge Completed
+              </h1>
+
+              <p className="text-lg text-muted-foreground">
+                Your answers have been submitted successfully.
+              </p>
+            </>
             )}
 
             <div className="mt-6 text-2xl font-bold">
               Score: {result.totalScore}
             </div>
 
-            {!result.isWinner &&
+            {result.status !== "pending" && !result.isWinner &&
               result.winners?.length > 0 && (
                 <div className="mt-4">
                   <p className="font-semibold">
