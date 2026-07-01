@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Menu, Sparkles, Bot } from "lucide-react";
 import { toast } from "sonner";
 import PlayfulBackground from "@/components/PlayfulBackground";
@@ -21,6 +21,8 @@ import {
 } from "@/lib/chat";
 import { getTokenStats } from "@/lib/profile";
 import JourneyMessage from "@/components/chat/JourneyMessage";
+import { generateStoryFromDrawing, sendDrawingStoryMessage, startDrawingStory } from "@/lib/drawingStory";
+import { useNotificationHandler } from "@/hooks/useFirebaseNotifications";
 
 type UiMessage = {
   id: number | string;
@@ -58,7 +60,26 @@ const Chat = () => {
   const { user } = useAuth();
   const [tokenBalance, setTokenBalance] = useState<number>(0);
 
-  const [mode, setMode] = useState<"normal" | "journey">("normal");
+  const [mode, setMode] = useState<"normal" | "journey" | "drawing">("normal");
+
+  const [drawingConversationId, setDrawingConversationId] = useState<number | null>(null);
+
+  const [drawingStarted, setDrawingStarted] = useState(false);
+
+  const [drawingLoading, setDrawingLoading] = useState(false);
+
+  const [drawingFinished, setDrawingFinished] = useState(false);
+
+  const [drawingStatus, setDrawingStatus] = useState("");
+  const navigate = useNavigate()
+  
+  useNotificationHandler({
+    type: "AI_PROGRESS",
+    handler: (payload) => {
+      setDrawingStatus(payload.data?.step || "");
+    },
+  });
+    
   useEffect(() => {
     getTokenStats().then((res) => {
       setTokenBalance(res.data.tokenBalance);
@@ -157,6 +178,46 @@ const Chat = () => {
   );
 
   const handleSend = async (text: string, files: File[] = []) => {
+    if(mode==="drawing" && drawingStarted){
+      const userMessage={
+        id:Date.now(),
+        role:"user" as const,
+        content:text
+      }
+
+      setMessages(prev=>[...prev,userMessage]);
+
+      try{
+        setStreaming(true);
+        const res=await sendDrawingStoryMessage({
+          conversationId:drawingConversationId,
+          message:text,
+        });
+        console.log("DRAWING RESPONSE =", res);
+        setStreaming(false);
+        
+
+        if (res.data.finished) {
+          setDrawingFinished(true);
+        }else{
+        setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now(),
+          role: "assistant",
+          content: res.data.reply,
+        },
+      ]);
+      }
+      }catch (e) {
+        console.error(e);
+        toast.error("Couldn't send message");
+      } finally {
+          setStreaming(false);
+      }
+      return
+    }
+
     if (!user) return;
     let convoId = activeId;
     // Auto-create conversation if none active
@@ -240,6 +301,66 @@ const Chat = () => {
     );
   };
 
+useEffect(() => {
+  console.log("drawingStarted =", drawingStarted);
+}, [drawingStarted]);
+
+useEffect(() => {
+  console.log("mode =", mode);
+}, [mode]);
+
+const handleStartDrawing = async (file: File) => {
+  try {
+        console.log("START DRAWING");
+
+    setDrawingLoading(true);
+
+    const res = await startDrawingStory(file);
+    console.log("API SUCCESS");
+
+    setDrawingConversationId(res.data.conversationId);
+    console.log("before setDrawingStarted");
+
+    setMode("drawing");
+setDrawingStarted(true);
+    console.log("after setDrawingStarted");
+
+    setMessages([
+      {
+        id: Date.now(),
+        role: "assistant",
+        content: res.data.reply,
+      },
+    ]);
+  } catch (e) {
+    toast.error("Couldn't analyze drawing");
+  } finally {
+    setDrawingLoading(false);
+  }
+};
+
+  const handleGenerateStory = async () => {
+  if (!drawingConversationId) return;
+
+  try {
+    setDrawingStatus("Starting...");
+    setDrawingLoading(true);
+    console.log("drawingConversationId =", drawingConversationId);
+    const res = await generateStoryFromDrawing({
+      conversationId: drawingConversationId,
+    });
+    // await new Promise((r) => setTimeout(r, 1000));
+    // await new Promise((r) => setTimeout(r, 1000));
+    toast.success("Story created!");
+    navigate("/my-stories");
+  } catch {
+    toast.error("Couldn't generate story");
+  } finally {
+    setDrawingLoading(false);
+    setDrawingStatus("")
+  }
+};
+console.log("CHAT PAGE drawingStarted =", drawingStarted);
   const showEmpty = !loadingMsgs && messages.length === 0;
 
   return (
@@ -371,6 +492,20 @@ const Chat = () => {
           </div>
         </div>
 
+        {drawingFinished && (
+        <div className="flex justify-center mb-4">
+          <button
+            onClick={handleGenerateStory}
+            className="bg-purple-600 text-white px-6 py-3 rounded-xl"
+            disabled={drawingLoading}
+          >
+            {drawingLoading
+              ? drawingStatus
+              : "Bring My Drawing To Life"}
+          </button>
+        </div>
+      )}
+
         <ChatInput
           onSend={handleSend}
           disabled={streaming}
@@ -379,6 +514,8 @@ const Chat = () => {
           tokenBalance={tokenBalance}
           mode={mode}
           onModeChange={setMode}
+          onStartDrawing={handleStartDrawing}
+          drawingStarted={drawingStarted}
         />
       </div>
     </div>

@@ -106,7 +106,11 @@ const MessageBubble = ({
   isStreaming,
 }: MessageBubbleProps) => {
   const isUser = role === "user";
-
+console.log({
+  role,
+  content,
+  imageUrl,
+});
   return (
     <div
       className={cn(
@@ -137,14 +141,27 @@ const MessageBubble = ({
             : "bg-card text-card-foreground"
         )}
       >
-        <ReactMarkdown>{content || "..."}</ReactMarkdown>
+        <ReactMarkdown>{content || "🖼️"}</ReactMarkdown>
 
-        {imageUrl && (
+        {/* {imageUrl && (
           <img
             src={`${import.meta.env.VITE_API_URL}${imageUrl}`}
             className="rounded-xl mt-2"
           />
-        )}
+        )} */}
+        {imageUrl && (
+  <img
+    src={
+      imageUrl.startsWith("blob:") ||
+      imageUrl.startsWith("data:") ||
+      imageUrl.startsWith("http")
+        ? imageUrl
+        : `${import.meta.env.VITE_API_URL}${imageUrl}`
+    }
+    className="rounded-xl mt-2 max-w-xs border shadow"
+    alt="uploaded"
+  />
+)}
 
         {audioUrl && (
           <audio

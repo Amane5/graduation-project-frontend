@@ -575,11 +575,8 @@ console.log("FIRST SCENE:", selectedStory.scenes?.[0]);
 
   useEffect(() => {
   if (!selectedStory) return;
-
-  if (
-    !selectedStory.audioUrl &&
-    currentSceneIndex === selectedStory.scenes.length - 1
-  ) {
+  const hasQuestions = selectedStory.questions?.length > 0;
+  if (hasQuestions && !selectedStory.audioUrl && currentSceneIndex === selectedStory.scenes.length - 1) {
     setShowQuestions(true);
   }
 }, [currentSceneIndex, selectedStory]);
@@ -689,7 +686,11 @@ return (
             ref={audioRef}
             controls
             className="w-full"
-            onEnded={() => setShowQuestions(true)}
+            onEnded={() => {
+              if(story.questions?.length>0){
+                setShowQuestions(true)
+              }
+            }}
           >
             <source
               src={`http://localhost:3000${story.audioUrl}`}
@@ -845,7 +846,7 @@ return (
     </div>
 
     {/* Questions */}
-    {showQuestions && (
+    {showQuestions  &&(
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl p-6 max-h-[85vh] overflow-y-auto">
           <h2 className="text-3xl font-bold mb-6">

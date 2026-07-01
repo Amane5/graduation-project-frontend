@@ -223,33 +223,36 @@ const CreateChallenge = () => {
     index: number
   ) => {
     if (!question.trim()) {
-      toast.error(
-        "Write question first"
-      );
+      toast.error("Write question first");
       return;
     }
 
     try {
-      const res =
-        await recommendAnswer(
-          question
-        );
-
-      const answer =
-        res?.data?.expectedAnswer;
+      const res = await recommendAnswer(question);
+console.log(res);
+console.log(res.data);
+console.log(res.data.expectedAnswer);
+      const answer = res?.data?.expectedAnswer ??
+  res?.data?.answer;
 
       if (!answer) return;
 
+      console.log("Before:", questions[index]);
+console.log("Answer:", answer);
       const updated = [...questions];
 
       updated[index].expectedAnswer =
         answer;
+console.log("After:", updated[index]);
 
       setQuestions(updated);
 
       toast.success(
         "Answer generated"
       );
+      console.log(res);
+console.log(res.data);
+console.log(res.data.expectedAnswer);
     } catch (error) {
       console.log(error);
 
@@ -672,11 +675,16 @@ const CreateChallenge = () => {
                             <Button
                             type="button"
                             variant="secondary"
-                            onClick={() =>
-                                handleGenerateAnswer(
+                            onClick={() =>{
+                              console.log(question)
+
+    console.log(question.question)
+    handleGenerateAnswer(
                                 question.question,
                                 index
                                 )
+                            }
+                                
                             }
                             >
                             <Sparkles className="w-4 h-4 mr-2" />

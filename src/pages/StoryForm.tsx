@@ -70,13 +70,13 @@ export default function StoryForm() {
   const [generationStep , setGenerationStep] = useState("")
 
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+
   useNotificationHandler({
     type: "AI_PROGRESS",
     handler: (payload) => {
       setGenerationStep(payload.data?.step || "");
     },
   });
-
 
   //useeffect to get children's names
   useEffect(() => {
