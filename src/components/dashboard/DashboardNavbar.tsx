@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Sparkles, LogOut, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
@@ -18,7 +18,6 @@ interface DashboardNavbarProps {
 }
 
 const DashboardNavbar = ({ parentName }: DashboardNavbarProps) => {
-  const navigate = useNavigate();
   const { username, logout } = useAuth();
   const [logoutOpen, setLogoutOpen] = useState(false);
 
@@ -28,7 +27,6 @@ const DashboardNavbar = ({ parentName }: DashboardNavbarProps) => {
   const handleLogout = () => {
     logout();
     toast.success("See you soon! 👋");
-    navigate("/login");
   };
 
   const initial = displayName.charAt(0).toUpperCase();

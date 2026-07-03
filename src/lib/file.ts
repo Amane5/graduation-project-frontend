@@ -1,9 +1,9 @@
+import { fetchWithSession } from "./auth-session";
+
 export const uploadFile = async (
   file: File,
   childIds: number[]
 ) => {
-  const token = localStorage.getItem("accessToken");
-
   const formData = new FormData();
 
   formData.append("file", file);
@@ -14,13 +14,8 @@ export const uploadFile = async (
 
   const url = `${import.meta.env.VITE_API_URL}/documents/upload`;
 
-  const res = await fetch(url, {
+  const res = await fetchWithSession(url, {
     method: "POST",
-
-    headers: {
-      Authorization: token ? `Bearer ${token}` : "",
-    },
-
     body: formData,
   });
 
@@ -35,15 +30,9 @@ export const uploadFile = async (
 };
 
 export const getFiles = async () => {
-  const token = localStorage.getItem("accessToken");
-
   const url = `${import.meta.env.VITE_API_URL}/documents`;
 
-  const res = await fetch(url, {
-    headers: {
-      Authorization: token ? `Bearer ${token}` : "",
-    },
-  });
+  const res = await fetchWithSession(url);
 
   if (!res.ok) {
     throw new Error("Failed to fetch files");
@@ -53,16 +42,10 @@ export const getFiles = async () => {
 };
 
 export const deleteFile = async (id: number) => {
-  const token = localStorage.getItem("accessToken");
-
   const url = `${import.meta.env.VITE_API_URL}/documents/${id}`;
 
-  const res = await fetch(url, {
+  const res = await fetchWithSession(url, {
     method: "DELETE",
-
-    headers: {
-      Authorization: token ? `Bearer ${token}` : "",
-    },
   });
 
   if (!res.ok) {
@@ -73,12 +56,10 @@ export const deleteFile = async (id: number) => {
 };
 
 export const updateFile = async (documentId:number , childIds: number[]) => {
-    const token = localStorage.getItem("accessToken")
     const url = `${import.meta.env.VITE_API_URL}/documents/${documentId}/children`;
-    const res = await fetch(url , {
+    const res = await fetchWithSession(url , {
         method: "PATCH",
         headers:{
-            Authorization : token? `Bearer ${token}` :"",
             "Content-Type": "application/json",
         },
         body: JSON.stringify({

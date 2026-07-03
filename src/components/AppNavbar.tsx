@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Sparkles,
   LogOut,
@@ -75,7 +75,6 @@ const CHILD_LINKS: NavItem[] = [
 ];
 
 const AppNavbar = () => {
-  const navigate = useNavigate();
   const { username, userType, logout } = useAuth();
   const { i18n } = useTranslation();
   // const toggleLang = () => {
@@ -86,8 +85,6 @@ const AppNavbar = () => {
   const toggleLang = () => {
     const newLang = i18n.language === "en" ? "ar" : "en";
     i18n.changeLanguage(newLang);
-    document.documentElement.dir = newLang === "ar" ? "rtl" : "ltr";
-    localStorage.setItem("language", newLang);
   };
   const isParent = userType === "parent";
   const isChild = userType === "child";
@@ -113,7 +110,6 @@ const AppNavbar = () => {
   const handleLogout = () => {
     logout();
     toast.success("See you soon! 👋");
-    navigate("/login");
   };
 
   return (

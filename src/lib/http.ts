@@ -1,11 +1,16 @@
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import {
+  buildAuthHeaders,
+  fetchWithSession,
+} from "./auth-session";
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export type ApiResponse<DATA = unknown> = {
-  statusCode: number
-  message: string
-  success: boolean
-  data: DATA
-}
+  statusCode: number;
+  message: string;
+  success: boolean;
+  data: DATA;
+};
 
 export class ApiError extends Error {
   status: number;
@@ -17,131 +22,106 @@ export class ApiError extends Error {
 }
 
 type ErrorResponse = {
-  message?: string | string[]
-  error?: string
-  statusCode?: number
-}
+  message?: string | string[];
+  error?: string;
+  statusCode?: number;
+};
 
-const throwApiError = async (res: Response) => {
-  let data: ErrorResponse = {}
-if (res.status === 401) {
-  localStorage.removeItem('accessToken')
-  window.location.href = '/login'
-}
+const parseJsonSafely = async <T>(response: Response) => {
   try {
-    data = await res.json()
-  // eslint-disable-next-line no-empty
-  } catch {}
-
-const message = Array.isArray(data.message)
-  ? data.message.join(', ')
-  : data.message || getErrorMessage(res.status)
-
-throw new ApiError(res.status, message)
-}
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+};
 
 const getErrorMessage = (status: number) => {
   switch (status) {
     case 400:
-      return 'Bad request 🧐'
+      return "Bad request";
     case 401:
-      return 'Unauthorized - please login again 🔐'
+      return "Unauthorized - please login again";
     case 403:
-      return 'Forbidden 🚫'
+      return "Forbidden";
     case 404:
-      return 'Not found 😢'
+      return "Not found";
     case 409:
-      return 'Already exists ⚠️'
+      return "Already exists";
     case 422:
-      return 'Validation error (check your inputs) ✍️'
+      return "Validation error (check your inputs)";
     case 500:
-      return 'Server error 💥'
+      return "Server error";
     default:
-      return 'Something went wrong 😵'
+      return "Something went wrong";
   }
-}
+};
+
+const throwApiError = async (response: Response) => {
+  const data = await parseJsonSafely<ErrorResponse>(response);
+  const message = Array.isArray(data?.message)
+    ? data.message.join(", ")
+    : data?.message || getErrorMessage(response.status);
+
+  throw new ApiError(response.status, message);
+};
+
+const buildJsonHeaders = (headers?: HeadersInit) => {
+  const nextHeaders = buildAuthHeaders(headers);
+  nextHeaders.set("Content-Type", "application/json");
+  return nextHeaders;
+};
+
+const request = async <TResponse>(
+  url: string,
+  init: RequestInit = {},
+) => {
+  const response = await fetchWithSession(`${API}${url}`, init);
+
+  if (!response.ok) {
+    await throwApiError(response);
+  }
+
+  if (response.status === 204) {
+    return null as TResponse;
+  }
+
+  const data = await parseJsonSafely<TResponse>(response);
+
+  return data as TResponse;
+};
 
 const http = {
   post: async <TResponse, TBody = unknown>(
     url: string,
-    body?: TBody
-  ): Promise<TResponse> => {
-    const res = await fetch(`${API}${url}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: localStorage.getItem('accessToken')
-          ? `Bearer ${localStorage.getItem('accessToken')}`
-          : ''
-      },
-      body: body ? JSON.stringify(body) : undefined
-    })
+    body?: TBody,
+  ): Promise<TResponse> =>
+    request<TResponse>(url, {
+      method: "POST",
+      headers: buildJsonHeaders(),
+      body: body ? JSON.stringify(body) : undefined,
+    }),
 
-    const data = await res.json()
+  get: async <TResponse>(url: string): Promise<TResponse> =>
+    request<TResponse>(url, {
+      method: "GET",
+      headers: buildJsonHeaders(),
+    }),
 
-    //  UPDATED ERROR HANDLING
-    if (!res.ok) {
-      await throwApiError(res)
-    }
+  put: async <TResponse, TBody = unknown>(
+    url: string,
+    body?: TBody,
+  ): Promise<TResponse> =>
+    request<TResponse>(url, {
+      method: "PUT",
+      headers: buildJsonHeaders(),
+      body: body ? JSON.stringify(body) : undefined,
+    }),
 
-    return data as TResponse
-  },
+  delete: async <TResponse>(url: string): Promise<TResponse> =>
+    request<TResponse>(url, {
+      method: "DELETE",
+      headers: buildJsonHeaders(),
+    }),
+};
 
-  get
-  : async <TResponse>(url: string): Promise<TResponse> => {
-    const res = await fetch(`${API}${url}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: localStorage.getItem('accessToken')
-          ? `Bearer ${localStorage.getItem('accessToken')}`
-          : ''
-      }
-    })
-
-
-    //  UPDATED ERROR HANDLING
-    if (!res.ok) {
-      await throwApiError(res)
-    }
-    const data = await res.json()
-    return data as TResponse
-  },
-
-  put: async<TResponse, TBody = unknown>(url:string, body?:TBody):Promise<TResponse> => {
-    const res= await fetch(`${API}${url}`,{
-      method:'PUT',
-      headers: {
-      'Content-Type': 'application/json',
-      Authorization: localStorage.getItem('accessToken')
-        ? `Bearer ${localStorage.getItem('accessToken')}`
-        : ''
-      },
-      body: body? JSON.stringify(body) : undefined
-    })
-    const data = await res.json()
-    if(!res.ok){
-      await throwApiError(res)
-    }
-    return data as TResponse
-  },
-
-  delete: async<TResponse>(url:string):Promise<TResponse> => {
-    const res= await fetch(`${API}${url}`,{
-      method: 'DELETE',
-      headers:{
-        'Content-Type': 'application/json',
-      Authorization: localStorage.getItem('accessToken')
-        ? `Bearer ${localStorage.getItem('accessToken')}`
-        : ''
-      }
-    })
-    const data = await res.json()
-    if(!res.ok){
-      await throwApiError(res)}
-    return data as TResponse
-  }
-
-}
-
-export default http
+export default http;

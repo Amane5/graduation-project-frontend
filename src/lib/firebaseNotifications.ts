@@ -1,12 +1,11 @@
 import { getToken } from "firebase/messaging";
+import { fetchWithSession } from "./auth-session";
 import { messaging } from "./firebase";
 
-export async function requestNotificationPermission() {
+export async function requestNotificationPermission(accessToken?: string) {
   const permission = await Notification.requestPermission();
 
   if (permission !== "granted") return;
-
-  const authToken = localStorage.getItem("accessToken");
 
   const token = await getToken(messaging, {
     vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
@@ -14,15 +13,15 @@ export async function requestNotificationPermission() {
 
   if (!token) return;
 
-  localStorage.setItem("fcmToken", token);
-
-  await fetch(
+  await fetchWithSession(
     `${import.meta.env.VITE_API_URL}/ai/fcm-token`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
+        ...(accessToken
+          ? { Authorization: `Bearer ${accessToken}` }
+          : {}),
       },
       body: JSON.stringify({ token }),
     }

@@ -4,8 +4,27 @@ import { initReactI18next } from "react-i18next";
 import en from "./en.json";
 import ar from "./ar.json";
 
+const LANGUAGE_KEY = "lang";
+const LEGACY_LANGUAGE_KEY = "language";
 
-const savedLang = localStorage.getItem("lang") || "en";
+const getStoredLanguage = () => {
+  const savedLang =
+    localStorage.getItem(LANGUAGE_KEY) ||
+    localStorage.getItem(LEGACY_LANGUAGE_KEY) ||
+    "en";
+
+  if (savedLang && localStorage.getItem(LANGUAGE_KEY) !== savedLang) {
+    localStorage.setItem(LANGUAGE_KEY, savedLang);
+  }
+
+  if (localStorage.getItem(LEGACY_LANGUAGE_KEY)) {
+    localStorage.removeItem(LEGACY_LANGUAGE_KEY);
+  }
+
+  return savedLang;
+};
+
+const savedLang = getStoredLanguage();
 
 i18n
   .use(initReactI18next)
@@ -27,7 +46,7 @@ i18n
     },
   });
 i18n.on("languageChanged", (lng) => {
-  localStorage.setItem("lang", lng);
+  localStorage.setItem(LANGUAGE_KEY, lng);
   document.documentElement.dir = lng === "ar" ? "rtl" : "ltr";
 });
 export default i18n;

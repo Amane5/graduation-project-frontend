@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,10 +14,12 @@ import { ApiError } from "@/lib/http";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { requestNotificationPermission } from "@/lib/firebaseNotifications";
+import type { AuthRedirectState } from "@/lib/auth-session";
 const Login = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const location = useLocation();
+  const { signIn, resolveRedirectTarget } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [userType, setUserType] = useState<"parent" | "child" | null>(null);
@@ -58,41 +60,17 @@ const Login = () => {
       const token = res.data.accessToken;
       const user = res.data.user;
       console.log("USER DATA:", res.data.user);
-      localStorage.setItem("accessToken", token);
+      signIn({
+        accessToken: token,
+        user,
+      });
 
-      localStorage.setItem("userType", user.type);
-      localStorage.setItem("USER_KEY", JSON.stringify(user));
-      await requestNotificationPermission()
+      await requestNotificationPermission(token);
 
-      if (user.gender) {
-        localStorage.setItem("gender", user.gender);
-      }
-
-      if (user.readingLevel) {
-        console.log("reading level:", user.readingLevel);
-        localStorage.setItem("readingLevel", user.readingLevel);
-      }
-
-      if (user.responseLength) {
-        localStorage.setItem("responseLength", user.responseLength);
-      }
-
-      if (user.learningStyle) {
-        localStorage.setItem("learningStyle", user.learningStyle);
-      }
-
-      if (user.interests) {
-        localStorage.setItem("interests", JSON.stringify(user.interests));
-      }
-      if (user.blockedTopics) {
-        localStorage.setItem(
-          "blockedTopics",
-          JSON.stringify(user.blockedTopics),
-        );
-      }
-      login(token, user.type, user.username, user, user.firstName);
-
-      navigate(user.type === "parent" ? "/dashboard" : "/chat");
+      const redirectState = location.state as AuthRedirectState | null;
+      navigate(resolveRedirectTarget(redirectState?.from, user.type), {
+        replace: true,
+      });
     } catch (err) {
       if (err instanceof ApiError) {
         toast.error(err.message);

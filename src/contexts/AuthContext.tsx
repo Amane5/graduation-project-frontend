@@ -3,25 +3,49 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
-  ReactNode,
+  type ReactNode,
 } from "react";
-
-export type UserType = "parent" | "child";
-
-const USER_KEY = "USER_KEY";
+import {
+  type AuthLogoutReason,
+  type AuthSession,
+  type AuthStatus,
+  type AuthUser,
+  clearStoredAuthSession,
+  readStoredAuthSession,
+  setStoredAuthSession,
+  subscribeToAuthSessionEvents,
+  subscribeToAuthStorage,
+  type UserType,
+  updateStoredAuthUser,
+} from "@/lib/auth-session";
+import {
+  canAccessRoute,
+  getHomeRoute,
+  resolveRedirectTarget,
+} from "@/lib/auth-routes";
 
 interface AuthState {
+  status: AuthStatus;
+  session: AuthSession | null;
+  logoutReason: AuthLogoutReason | null;
+}
+
+interface AuthContextValue {
+  status: AuthStatus;
+  session: AuthSession | null;
   accessToken: string | null;
-  userType: UserType | null;
-  username: string | null;
   user: AuthUser | null;
+  userType: UserType | null;
+  role: UserType | null;
+  username: string | null;
   firstName: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-}
-
-interface AuthContextValue extends AuthState {
+  logoutReason: AuthLogoutReason | null;
+  signIn: (session: AuthSession) => void;
+  signOut: (options?: { reason?: AuthLogoutReason }) => void;
   login: (
     token: string,
     userType: UserType,
@@ -29,102 +53,81 @@ interface AuthContextValue extends AuthState {
     user?: AuthUser,
     firstName?: string,
   ) => void;
-
-  logout: () => void;
+  logout: (options?: { reason?: AuthLogoutReason }) => void;
+  updateSessionUser: (user: AuthUser) => void;
+  hasRole: (role: UserType) => boolean;
+  canAccess: (target: string, roleOverride?: UserType | null) => boolean;
+  getHomeRoute: (roleOverride?: UserType | null) => string;
+  resolveRedirectTarget: (target?: string | null, roleOverride?: UserType | null) => string;
 }
-
-type AuthUser = {
-  id: number;
-  username: string;
-  type: UserType;
-
-  firstName?: string;
-  lastName?: string;
-  email?: string | null;
-
-  readingLevel?: string;
-  responseLength?: string;
-  learningStyle?: string;
-
-  interests?: string[];
-  gender?: string[];
-  blockedTopics?: string[];
-};
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const TOKEN_KEY = "accessToken";
-const USERTYPE_KEY = "userType";
-const USERNAME_KEY = "username";
-const FIRSTNAME_KEY = "firstName";
+const getAnonymousState = (
+  reason: AuthLogoutReason | null = null,
+): AuthState => ({
+  status: "anonymous",
+  session: null,
+  logoutReason: reason,
+});
 
-const READING_LEVEL_KEY = "readingLevel";
-const RESPONSE_LENGTH_KEY = "responseLength";
-const LEARNING_STYLE_KEY = "learningStyle";
-const INTERESTS_KEY = "interests";
-const GENDER_KEY = "gender";
-const BLOCKED_TOPICS_KEY = "blockedTopics";
+const getInitialState = (): AuthState => ({
+  status: "loading",
+  session: null,
+  logoutReason: null,
+});
+
+export type { AuthSession, AuthStatus, AuthUser, UserType } from "@/lib/auth-session";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [state, setState] = useState<AuthState>({
-    accessToken: null,
-    userType: null,
-    username: null,
-    user: null,
-    firstName: null,
-    isAuthenticated: false,
-    isLoading: true,
-  });
+  const [state, setState] = useState<AuthState>(getInitialState);
+
+  const hydrateFromStorage = useCallback((reason: AuthLogoutReason | null = null) => {
+    const session = readStoredAuthSession();
+
+    setState(
+      session
+        ? {
+            status: "authenticated",
+            session,
+            logoutReason: null,
+          }
+        : getAnonymousState(reason),
+    );
+  }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
+    hydrateFromStorage();
 
-    const userType = localStorage.getItem(
-      USERTYPE_KEY,
-    ) as UserType | null;
+    const unsubscribeStorage = subscribeToAuthStorage(() => {
+      hydrateFromStorage();
+    });
 
-    const username = localStorage.getItem(USERNAME_KEY);
+    const unsubscribeSession = subscribeToAuthSessionEvents((detail) => {
+      setState(
+        detail.session
+          ? {
+              status: "authenticated",
+              session: detail.session,
+              logoutReason: null,
+            }
+          : getAnonymousState(detail.reason ?? null),
+      );
+    });
 
-    const firstName = localStorage.getItem(FIRSTNAME_KEY);
+    return () => {
+      unsubscribeStorage();
+      unsubscribeSession();
+    };
+  }, [hydrateFromStorage]);
 
-    const storedUser = localStorage.getItem(USER_KEY);
+  const signIn = useCallback((session: AuthSession) => {
+    setStoredAuthSession(session);
+  }, []);
 
-    const user: AuthUser | null = storedUser
-      ? JSON.parse(storedUser)
-      : null;
-
-    localStorage.getItem(GENDER_KEY);
-    localStorage.getItem(READING_LEVEL_KEY);
-    localStorage.getItem(RESPONSE_LENGTH_KEY);
-    localStorage.getItem(LEARNING_STYLE_KEY);
-
-    JSON.parse(localStorage.getItem(INTERESTS_KEY) || "[]");
-
-    JSON.parse(localStorage.getItem(BLOCKED_TOPICS_KEY) || "[]");
-
-    if (token && (userType === "parent" || userType === "child")) {
-      setState({
-        accessToken: token,
-        userType,
-        username,
-        firstName,
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-
-      });
-    } else {
-      setState({
-        accessToken: null,
-        userType: null,
-        username: null,
-        user: null,
-        firstName: null,
-        isAuthenticated: false,
-        isLoading: false,
-      });
-    }
-}, []);
+  const signOut = useCallback((options?: { reason?: AuthLogoutReason }) => {
+    clearStoredAuthSession(options?.reason ?? "logout");
+  }, []);
 
   const login = useCallback(
     (
@@ -134,65 +137,112 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       user?: AuthUser,
       firstName?: string,
     ) => {
-      localStorage.setItem(TOKEN_KEY, token);
-
-      localStorage.setItem(USERTYPE_KEY, userType);
-
-      localStorage.setItem(USERNAME_KEY, username);
-      if (user) {
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
-      } else {
-        localStorage.removeItem(USER_KEY);
+      if (!user) {
+        throw new Error("login requires a user payload");
       }
-      if (firstName) localStorage.setItem(FIRSTNAME_KEY, firstName);
-      else localStorage.removeItem(FIRSTNAME_KEY);
 
-      setState({
+      signIn({
         accessToken: token,
-        userType,
-        username,
-        user: user ?? null,
-        firstName: firstName ?? null,
-        isAuthenticated: true,
-        isLoading: false,
+        user: {
+          ...user,
+          type: userType,
+          username,
+          firstName: firstName ?? user.firstName,
+        },
       });
     },
-    [],
+    [signIn],
   );
 
-  const logout = useCallback(() => {
-    localStorage.clear();
-
-    setState({
-      accessToken: null,
-      userType: null,
-      username: null,
-      firstName: null,
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
-    });
+  const updateSessionUser = useCallback((user: AuthUser) => {
+    updateStoredAuthUser(user);
   }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        ...state,
-        login,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const role = state.session?.user.type ?? null;
+
+  const hasRole = useCallback(
+    (expectedRole: UserType) => role === expectedRole,
+    [role],
   );
-}
+
+  const canAccess = useCallback(
+    (target: string, roleOverride?: UserType | null) => {
+      const effectiveRole = roleOverride ?? role;
+
+      return effectiveRole ? canAccessRoute(effectiveRole, target) : false;
+    },
+    [role],
+  );
+
+  const getResolvedHomeRoute = useCallback(
+    (roleOverride?: UserType | null) => {
+      const effectiveRole = roleOverride ?? role;
+
+      return effectiveRole ? getHomeRoute(effectiveRole) : "/login";
+    },
+    [role],
+  );
+
+  const getResolvedRedirectTarget = useCallback(
+    (target?: string | null, roleOverride?: UserType | null) => {
+      const effectiveRole = roleOverride ?? role;
+
+      return effectiveRole
+        ? resolveRedirectTarget(target, effectiveRole)
+        : "/login";
+    },
+    [role],
+  );
+
+  const value = useMemo<AuthContextValue>(() => {
+    const user = state.session?.user ?? null;
+
+    return {
+      status: state.status,
+      session: state.session,
+      accessToken: state.session?.accessToken ?? null,
+      user,
+      userType: role,
+      role,
+      username: user?.username ?? null,
+      firstName: user?.firstName ?? null,
+      isAuthenticated: state.status === "authenticated",
+      isLoading: state.status === "loading",
+      logoutReason: state.logoutReason,
+      signIn,
+      signOut,
+      login,
+      logout: signOut,
+      updateSessionUser,
+      hasRole,
+      canAccess,
+      getHomeRoute: getResolvedHomeRoute,
+      resolveRedirectTarget: getResolvedRedirectTarget,
+    };
+  }, [
+    canAccess,
+    getResolvedHomeRoute,
+    getResolvedRedirectTarget,
+    hasRole,
+    login,
+    role,
+    signIn,
+    signOut,
+    state.logoutReason,
+    state.session,
+    state.status,
+    updateSessionUser,
+  ]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext);
+  const context = useContext(AuthContext);
 
-  if (!ctx) {
+  if (!context) {
     throw new Error("useAuth must be used within AuthProvider");
   }
 
-  return ctx;
-}
+  return context;
+};

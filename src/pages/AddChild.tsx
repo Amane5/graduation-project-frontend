@@ -67,7 +67,7 @@ const AddChild = () => {
   const isEditMode = !!editingChild;
   const navigate = useNavigate();
   const { id: editId } = useParams<{ id?: string }>();
-  const { accessToken } = useAuth();
+  const { accessToken, updateSessionUser, user } = useAuth();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -178,33 +178,16 @@ const AddChild = () => {
           blockedTopics,
         };
         await updateChild(payload);
-        localStorage.setItem("readingLevel", readingLevel);
-        localStorage.setItem("gender", gender);
-        localStorage.setItem("responseLength", responseLength);
-
-        localStorage.setItem("learningStyle", learningStyle);
-
-        localStorage.setItem("interests", JSON.stringify(interests));
-
-        localStorage.setItem("blockedTopics", JSON.stringify(blockedTopics));
-        const storedUser = localStorage.getItem("USER_KEY");
-
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-
-          if (parsedUser.id === editingChild.id) {
-            const updatedUser = {
-              ...parsedUser,
+        if (user?.id === editingChild.id) {
+            updateSessionUser({
+              ...user,
               gender,
               readingLevel,
               responseLength,
               learningStyle,
               interests,
               blockedTopics,
-            };
-
-            localStorage.setItem("USER_KEY", JSON.stringify(updatedUser));
-          }
+            });
         }
         console.log(">>>>>>>>>>>>>>>>", birthDate);
         toast.success(t("updated"));

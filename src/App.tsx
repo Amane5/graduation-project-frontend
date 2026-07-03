@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,10 +24,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import MyFiles from "./pages/MyFiles";
 import ChildrenStories from "./pages/ChildrenStories";
 import { useFirebaseNotifications } from "./hooks/useFirebaseNotifications.ts";
-import { getToken } from "firebase/messaging";
-import { messaging } from "./lib/firebase.ts";
-import { useEffect } from "react";
-import i18n from "./i18n/i18n.ts";
 import Reports from "./pages/Reports.tsx";
 import StoryReport from "./pages/StoryReport.tsx";
 import Challenges from "./pages/Challenges.tsx";
@@ -37,6 +33,7 @@ import EditChallenge from "./pages/EditChallenge.tsx";
 import ActiveChallenges from "./pages/ActiveChallenges.tsx";
 import PlayChallenge from "./pages/PlayChallenge.tsx";
 import ChallengeResults from "./pages/ChallengeResults.tsx";
+import { HomeRedirect } from "./pages/Index.tsx";
 const queryClient = new QueryClient();
 
 const NavbarController = () => {
@@ -52,14 +49,6 @@ const NavbarController = () => {
 const App = () => {
   useFirebaseNotifications();
 
-  useEffect(() => {
-    const savedLang = localStorage.getItem("language") || "en";
-
-    i18n.changeLanguage(savedLang);
-
-    document.documentElement.dir = savedLang === "ar" ? "rtl" : "ltr";
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
@@ -73,20 +62,7 @@ const App = () => {
                 {/* Public */}
                 <Route
                   path="/"
-                  element={
-                    localStorage.getItem("accessToken") ? (
-                      <Navigate
-                        to={
-                          localStorage.getItem("userType") === "parent"
-                            ? "/dashboard"
-                            : "/chat"
-                        }
-                        replace
-                      />
-                    ) : (
-                      <Navigate to="/login" replace />
-                    )
-                  }
+                  element={<HomeRedirect />}
                 />
                 <Route
                   path="/register"
