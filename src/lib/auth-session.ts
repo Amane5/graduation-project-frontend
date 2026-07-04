@@ -106,10 +106,16 @@ const normalizeAuthUser = (
       typeof record.firstName === "string" ? record.firstName : undefined,
     lastName:
       typeof record.lastName === "string" ? record.lastName : undefined,
+    // email:
+    //   typeof record.email === "string" || record.email === null
+    //     ? (record.email as string ?? null)
+    //     : undefined,
     email:
-      typeof record.email === "string" || record.email === null
-        ? (record.email ?? null)
-        : undefined,
+    typeof record.email === "string"
+    ? record.email
+    : record.email === null
+      ? null
+      : undefined,
     gender: typeof record.gender === "string" ? record.gender : undefined,
     readingLevel:
       typeof record.readingLevel === "string"

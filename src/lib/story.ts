@@ -70,7 +70,7 @@ export const updateStoryWithAi = async (storyId:number, data) =>{
 
 export const getStoryEditMessages = async (storyId:number) => {
   const res = await fetchWithSession(
-    `${import.meta.env.VITE_API_URL}/story/${storyId}/edit-messages`,
+    `${import.meta.env.VITE_API_URL}/story/${storyId}/edit-message`,
   );
 
   return await res.json();
