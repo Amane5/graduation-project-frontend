@@ -6,27 +6,43 @@ import PlayfulBackground from "@/components/PlayfulBackground";
 import OtpInput from "@/components/OtpInput";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { verifyEmail } from "@/lib/auth";
+import { resendOtp, verifyEmail } from "@/lib/auth";
 import { useTranslation } from "react-i18next";
+
 const RESEND_SECONDS = 30;
+const PENDING_EMAIL_KEY = "pending.verify.email";
 
 const VerifyEmail = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const email =
-    (location.state as { email?: string } | null)?.email ?? "your inbox";
+  const locationEmail =
+    (location.state as { email?: string } | null)?.email?.trim().toLowerCase() ?? "";
+  const [email] = useState(() => {
+    if (locationEmail) {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(PENDING_EMAIL_KEY, locationEmail);
+      }
+      return locationEmail;
+    }
 
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return window.sessionStorage.getItem(PENDING_EMAIL_KEY)?.trim().toLowerCase() ?? "";
+  });
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState("");
   const [shake, setShake] = useState(0);
   const [resendIn, setResendIn] = useState(RESEND_SECONDS);
 
   useEffect(() => {
     if (resendIn <= 0) return;
-    const t = setInterval(() => setResendIn((s) => s - 1), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setResendIn((seconds) => seconds - 1), 1000);
+    return () => clearInterval(timer);
   }, [resendIn]);
 
   useEffect(() => {
@@ -37,44 +53,72 @@ const VerifyEmail = () => {
   }, [otp]);
 
   const handleVerify = async (code: string) => {
+    if (!email) {
+      setError("We couldn't find your email. Please register again.");
+      return;
+    }
+
     setError("");
     setLoading(true);
+
     try {
       const res = await verifyEmail({
-        email: email.trim().toLowerCase(),
+        email,
         otp: code.trim(),
       });
 
       if (res?.data?.userId) {
+        if (typeof window !== "undefined") {
+          window.sessionStorage.removeItem(PENDING_EMAIL_KEY);
+        }
+
+        toast.success("Email verified!", {
+          description: "Your account is ready. Sign in to continue.",
+        });
         navigate("/login");
       }
-
-      toast.success("Email verified! 🎉", {
-        description: "Welcome to Little Minds — let's get you set up.",
-      });
-      setTimeout(() => navigate("/dashboard"), 400);
     } catch (e) {
-      const reason = (e as Error).message;
-      const msg =
-        reason === "EXPIRED_CODE"
-          ? "This code has expired. Please request a new one ⏰"
-          : reason === "NO_PENDING_REGISTRATION"
-            ? "No pending sign-up found. Please register again 📝"
-            : "That code doesn't look right. Try again 😕";
+      const reason = (e as Error).message.toLowerCase();
+      const msg = reason.includes("expired")
+        ? "This code has expired. Please request a new one."
+        : reason.includes("not found") || reason.includes("pending")
+          ? "We couldn't find a pending sign-up for this email. Please register again."
+          : "That code doesn't look right. Try again.";
       setError(msg);
-      setShake((k) => k + 1);
+      setShake((key) => key + 1);
       setOtp("");
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleResend = () => {
-    setResendIn(RESEND_SECONDS);
-    setOtp("");
-    setError("");
-    toast.success("New code sent! 💌", {
-      description: `Check ${email} for your fresh code.`,
-    });
+  const handleResend = async () => {
+    if (!email) {
+      toast.error("We don't know which email to resend to. Please register again.");
+      navigate("/register");
+      return;
+    }
+
+    setResending(true);
+    try {
+      await resendOtp({ email });
+      setResendIn(RESEND_SECONDS);
+      setOtp("");
+      setError("");
+      toast.success("New code sent!", {
+        description: `Check ${email} for your fresh code.`,
+      });
+    } catch (e) {
+      const reason = (e as Error).message.toLowerCase();
+      const msg = reason.includes("already")
+        ? "This email is already verified. Please sign in instead."
+        : reason.includes("not found")
+          ? "We couldn't find a pending sign-up for this email. Please register again."
+          : "Couldn't resend the code right now. Please try again.";
+      toast.error(msg);
+    } finally {
+      setResending(false);
+    }
   };
 
   return (
@@ -100,7 +144,7 @@ const VerifyEmail = () => {
           <p className="text-muted-foreground text-sm mb-7">
             {t("weSentCode")}{" "}
             <span className="font-semibold text-foreground break-all">
-              {email}
+              {email || "your email address"}
             </span>
           </p>
 
@@ -111,17 +155,17 @@ const VerifyEmail = () => {
             disabled={loading}
           />
 
-          {error && (
+          {error ? (
             <p className="text-sm text-destructive font-medium mt-4 animate-fade-slide-up">
               {error}
             </p>
-          )}
+          ) : null}
 
           <Button
             variant="hero"
             size="lg"
             className="w-full mt-6"
-            // onClick={() => handleVerify(otp)}
+            onClick={() => void handleVerify(otp)}
             disabled={otp.length !== 6 || loading}
           >
             {loading ? (
@@ -143,11 +187,14 @@ const VerifyEmail = () => {
             ) : (
               <button
                 type="button"
-                onClick={handleResend}
-                className="text-primary font-semibold hover:underline underline-offset-4 inline-flex items-center gap-1"
+                onClick={() => void handleResend()}
+                disabled={resending}
+                className="text-primary font-semibold hover:underline underline-offset-4 inline-flex items-center gap-1 disabled:opacity-60 disabled:no-underline"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                {t("resendCode")}
+                <RefreshCw
+                  className={cn("w-3.5 h-3.5", resending && "animate-spin")}
+                />
+                {resending ? "Sending..." : t("resendCode")}
               </button>
             )}
           </div>
@@ -162,8 +209,7 @@ const VerifyEmail = () => {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          {t("verifyTip")}{" "}
-          <code className="font-mono">000000</code> for invalid,{" "}
+          {t("verifyTip")} <code className="font-mono">000000</code> for invalid,{" "}
           <code className="font-mono">111111</code> for expired.
         </p>
       </div>

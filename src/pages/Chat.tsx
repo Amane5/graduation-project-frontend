@@ -21,7 +21,12 @@ import {
 } from "@/lib/chat";
 import { getTokenStats } from "@/lib/profile";
 import JourneyMessage from "@/components/chat/JourneyMessage";
-import { generateStoryFromDrawing, sendDrawingStoryMessage, startDrawingStory } from "@/lib/drawingStory";
+import {
+  generateStoryFromDrawing,
+  getDrawingStorySession,
+  sendDrawingStoryMessage,
+  startDrawingStory,
+} from "@/lib/drawingStory";
 import { useNotificationHandler } from "@/hooks/useFirebaseNotifications";
 
 type UiMessage = {
@@ -33,7 +38,7 @@ type UiMessage = {
   imageUrl?: string;
 
   responseMode?: string;
-  journeyData?: any;
+  journeyData?: unknown;
 };
 
 
@@ -72,6 +77,17 @@ const Chat = () => {
 
   const [drawingStatus, setDrawingStatus] = useState("");
   const navigate = useNavigate()
+
+  const resetDrawingState = useCallback(
+    (nextMode: "normal" | "journey" | "drawing" = "normal") => {
+      setMode(nextMode);
+      setDrawingConversationId(null);
+      setDrawingStarted(false);
+      setDrawingFinished(false);
+      setDrawingStatus("");
+    },
+    [],
+  );
   
   useNotificationHandler({
     type: "AI_PROGRESS",
@@ -99,7 +115,7 @@ const Chat = () => {
         setLoadingConvos(false);
       }
     })();
-  }, [user]);
+  }, [t, user]);
 
   useEffect(() => {
     if (routeConvoId) {
@@ -110,16 +126,15 @@ const Chat = () => {
   }, [routeConvoId, conversations]);
 
   // Load messages when active conversation changes
-  // TODO: fix messages state here
   useEffect(() => {
     if (!activeId || streaming) return;
-    console.log("activ id", activeId);
     setLoadingMsgs(true);
     (async () => {
       try {
-        const msgs: AskMessage[] = await listMessages(activeId);
-        console.log("messageeeee", msgs);
-        // setMessages(msgs.map((m: DbMessage) => ({ id: m.id, role: m.role, content: m.content })));
+        const [msgs, drawingSession] = await Promise.all([
+          listMessages(activeId),
+          getDrawingStorySession(activeId),
+        ]);
         setMessages(
           msgs.flatMap((m) => [
             {
@@ -139,13 +154,23 @@ const Chat = () => {
             },
           ]),
         );
+
+        if (drawingSession) {
+          setMode("drawing");
+          setDrawingConversationId(drawingSession.conversationId);
+          setDrawingStarted(true);
+          setDrawingFinished(drawingSession.interviewFinished);
+          setDrawingStatus("");
+        } else {
+          resetDrawingState();
+        }
       } catch {
         toast.error(t("couldntLoadMessages"));
       } finally {
         setLoadingMsgs(false);
       }
     })();
-  }, [activeId, streaming]);
+  }, [activeId, resetDrawingState, streaming, t]);
 
   // Auto-scroll
   useEffect(() => {
@@ -158,7 +183,8 @@ const Chat = () => {
   const handleNew = useCallback(() => {
     setActiveId(null);
     setMessages([]);
-  }, []);
+    resetDrawingState();
+  }, [resetDrawingState]);
 
   const handleDelete = useCallback(
     async (id: number) => {
@@ -168,13 +194,14 @@ const Chat = () => {
         if (activeId === id) {
           setActiveId(null);
           setMessages([]);
+          resetDrawingState();
         }
         toast.success(t("chatRemoved"));
       } catch {
         toast.error(t("couldntDeleteChat"));
       }
     },
-    [activeId],
+    [activeId, resetDrawingState, t],
   );
 
   const handleSend = async (text: string, files: File[] = []) => {
@@ -193,7 +220,6 @@ const Chat = () => {
           conversationId:drawingConversationId,
           message:text,
         });
-        console.log("DRAWING RESPONSE =", res);
         setStreaming(false);
         
 
@@ -301,29 +327,25 @@ const Chat = () => {
     );
   };
 
-useEffect(() => {
-  console.log("drawingStarted =", drawingStarted);
-}, [drawingStarted]);
-
-useEffect(() => {
-  console.log("mode =", mode);
-}, [mode]);
-
 const handleStartDrawing = async (file: File) => {
   try {
-        console.log("START DRAWING");
-
     setDrawingLoading(true);
 
     const res = await startDrawingStory(file);
-    console.log("API SUCCESS");
-
     setDrawingConversationId(res.data.conversationId);
-    console.log("before setDrawingStarted");
-
+    setActiveId(res.data.conversationId);
     setMode("drawing");
-setDrawingStarted(true);
-    console.log("after setDrawingStarted");
+    setDrawingStarted(true);
+    setDrawingFinished(false);
+    setDrawingStatus("");
+    setConversations((prev) => [
+      {
+        id: res.data.conversationId,
+        title: "Drawing Story",
+        lastActivity: new Date().toISOString(),
+      },
+      ...prev.filter((conversation) => conversation.id !== res.data.conversationId),
+    ]);
 
     setMessages([
       {
@@ -345,8 +367,7 @@ setDrawingStarted(true);
   try {
     setDrawingStatus("Starting...");
     setDrawingLoading(true);
-    console.log("drawingConversationId =", drawingConversationId);
-    const res = await generateStoryFromDrawing({
+    await generateStoryFromDrawing({
       conversationId: drawingConversationId,
     });
     // await new Promise((r) => setTimeout(r, 1000));
@@ -360,7 +381,6 @@ setDrawingStarted(true);
     setDrawingStatus("")
   }
 };
-console.log("CHAT PAGE drawingStarted =", drawingStarted);
   const showEmpty = !loadingMsgs && messages.length === 0;
 
   return (

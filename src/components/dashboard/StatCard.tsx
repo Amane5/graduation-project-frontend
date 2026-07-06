@@ -4,16 +4,27 @@ import { cn } from "@/lib/utils";
 
 interface StatCardProps {
   label: string;
-  value: number;
+  value: number | string;
   suffix?: string;
   icon: LucideIcon;
   emoji: string;
   gradient: string;
   delay?: number;
+  helperText?: string;
 }
 
-const StatCard = ({ label, value, suffix, icon: Icon, emoji, gradient, delay = 0 }: StatCardProps) => {
-  const animated = useCountUp(value, 1000);
+const StatCard = ({
+  label,
+  value,
+  suffix,
+  icon: Icon,
+  emoji,
+  gradient,
+  delay = 0,
+  helperText,
+}: StatCardProps) => {
+  const numericValue = typeof value === "number" ? value : null;
+  const animated = useCountUp(numericValue ?? 0, 1000);
 
   return (
     <div
@@ -32,10 +43,15 @@ const StatCard = ({ label, value, suffix, icon: Icon, emoji, gradient, delay = 0
         <span className="text-2xl">{emoji}</span>
       </div>
       <div className="text-3xl font-bold text-foreground tabular-nums">
-        {animated}
-        {suffix && <span className="text-xl text-muted-foreground ml-1">{suffix}</span>}
+        {numericValue === null ? value : animated}
+        {numericValue !== null && suffix && (
+          <span className="text-xl text-muted-foreground ml-1">{suffix}</span>
+        )}
       </div>
       <div className="text-sm text-muted-foreground mt-1">{label}</div>
+      {helperText ? (
+        <div className="text-xs text-muted-foreground mt-2">{helperText}</div>
+      ) : null}
     </div>
   );
 };

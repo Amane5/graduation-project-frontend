@@ -11,12 +11,10 @@ import {
   UsersRound,
   AlertCircle,
   PlusCircle,
-  Star,
-  Sparkles,
   BarChart3,
+  Sparkles,
 } from "lucide-react";
 
-import AppNavbar from "@/components/AppNavbar";
 import StatCard from "@/components/dashboard/StatCard";
 import ChildCard from "@/components/dashboard/ChildCard";
 import ChildCardSkeleton from "@/components/dashboard/ChildCardSkeleton";
@@ -24,15 +22,15 @@ import QuickActionCard from "@/components/dashboard/QuickActionCard";
 import DeleteChildModal from "@/components/dashboard/DeleteChildModal";
 import PlayfulBackground from "@/components/PlayfulBackground";
 import { Button } from "@/components/ui/button";
-import { Child } from "@/lib/children";
-import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
 import {
+  Child,
+  getDashboardStats,
+  type DashboardStats,
   getChildren,
   deleteChildById,
-  createChild,
-  updateChild,
 } from "@/lib/children";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 type LoadState = "loading" | "ready" | "error";
 
 const Dashboard = () => {
@@ -46,6 +44,11 @@ const Dashboard = () => {
 
   const [state, setState] = useState<LoadState>("loading");
   const [children, setChildren] = useState<Child[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalChildren: 0,
+    questionsToday: 0,
+    activeMinutes: null,
+  });
 
   const [deleting, setDeleting] = useState<Child | null>(null);
 
@@ -55,8 +58,12 @@ const Dashboard = () => {
       try {
         setState("loading");
 
-        const res = await getChildren();
-        setChildren(res.data || []);
+        const [childrenResponse, dashboardStatsResponse] = await Promise.all([
+          getChildren(),
+          getDashboardStats(),
+        ]);
+        setChildren(childrenResponse.data || []);
+        setStats(dashboardStatsResponse.data.data);
         setState("ready");
       } catch (err) {
         console.log(err);
@@ -83,12 +90,6 @@ const Dashboard = () => {
     } catch {
       toast.error(t("failedDeleteChild"));
     }
-  };
-
-  const stats = {
-    totalChildren: children.length,
-    questionsToday: 47,
-    activeMinutes: 82,
   };
 
   return (
@@ -126,12 +127,21 @@ const Dashboard = () => {
             />
             <StatCard
               label={t("activeTime")}
-              value={stats.activeMinutes}
-              suffix={t("minutes")}
+              value={
+                stats.activeMinutes === null
+                  ? t("notAvailableShort")
+                  : stats.activeMinutes
+              }
+              suffix={stats.activeMinutes === null ? undefined : t("minutes")}
               icon={Clock}
               emoji="⏱"
               gradient="from-accent to-secondary"
               delay={200}
+              helperText={
+                stats.activeMinutes === null
+                  ? t("activeTimeUnavailable")
+                  : undefined
+              }
             />
           </section>
 

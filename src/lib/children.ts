@@ -100,6 +100,12 @@ export interface Child {
   blockedTopics?: string[];
 }
 
+export interface DashboardStats {
+  totalChildren: number;
+  questionsToday: number;
+  activeMinutes: number | null;
+}
+
 export const AVATAR_PRESETS = [
   { color: "from-primary to-primary-glow", emoji: "🦊" },
   { color: "from-secondary to-primary-glow", emoji: "🐻" },
@@ -136,6 +142,9 @@ export const getChildren = async (): Promise<Child[]> => {
   const res = await http.get<ApiResponse<Child[]>>("/children");
   return res.data;
 };
+
+export const getDashboardStats = () =>
+  http.get<ApiResponse<DashboardStats>>("/children/dashboard-stats");
 
 // CREATE
 export const createChild = (data: {

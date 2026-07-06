@@ -140,6 +140,8 @@
   "totalChildren": "Total Children",
   "questionsToday": "Questions Today",
   "activeTime": "Active Time",
+  "notAvailableShort": "N/A",
+  "activeTimeUnavailable": "Active time is not available yet because the backend does not store session-duration data.",
   "yourChildren": "Your Children",
   "manageProfiles": "Manage profiles and keep them safe.",
   "addChild": "Add Child",

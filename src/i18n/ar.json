@@ -141,6 +141,8 @@
   "totalChildren": "إجمالي الأطفال",
   "questionsToday": "أسئلة اليوم",
   "activeTime": "الوقت النشط",
+  "notAvailableShort": "غير متاح",
+  "activeTimeUnavailable": "الوقت النشط غير متاح حالياً لأن الخادم لا يخزن مدة الجلسات.",
   "yourChildren": "أطفالك",
   "manageProfiles": "قم بإدارة الملفات الشخصية والحفاظ على أمانهم.",
   "addChild": "إضافة طفل",
