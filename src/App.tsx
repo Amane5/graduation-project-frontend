@@ -20,6 +20,7 @@ import Profile from "./pages/profile.tsx";
 import StoryForm from "./pages/StoryForm";
 import MyStories from "./pages/MyStories";
 import AppNavbar from "@/components/AppNavbar";
+import ChildNavbar from "@/components/ChildNavbar";
 import { useAuth } from "@/contexts/AuthContext";
 import MyFiles from "./pages/MyFiles";
 import ChildrenStories from "./pages/ChildrenStories";
@@ -41,9 +42,11 @@ const NavbarController = () => {
 
   if (isLoading) return null;
 
-  if (userType !== "parent") return null;
+  if (userType === "parent") return <AppNavbar />;
 
-  return <AppNavbar />;
+  if (userType === "child") return <ChildNavbar />;
+
+  return null;
 };
 
 const App = () => {

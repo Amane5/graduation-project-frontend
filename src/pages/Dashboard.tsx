@@ -221,13 +221,6 @@ const Dashboard = () => {
                 gradient="from-purple-500 to-pink-500"
               />
               <QuickActionCard
-                to="/my-stories"
-                label={t("myStories")}
-                description={t("readStories")}
-                icon={BookOpen}
-                gradient="from-blue-500 to-indigo-500"
-              />
-              <QuickActionCard
                 to="/challenges"
                 label={t("challenges")}
                 description={t("viewChildProgress")}
@@ -246,8 +239,8 @@ const Dashboard = () => {
             setDeleting(null);
           }
         }}
-        title="Delete Child"
-        description="Are you sure you want to delete this child?"
+        title={t("deleteChildTitle")}
+        description={t("deleteChildDescription")}
         onConfirm={() => (deleting ? handleDelete(deleting) : undefined)}
       />
     </div>

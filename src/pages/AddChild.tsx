@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 
 import PlayfulBackground from "@/components/PlayfulBackground";
-import AppNavbar from "@/components/AppNavbar";
 import { toast } from "sonner";
 import { Child } from "@/lib/children";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,7 +25,6 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -40,26 +38,6 @@ interface Errors {
   password?: string;
   repeatPassword?: string;
 }
-
-const generatePassword = (length = 10): string => {
-  const lowers = "abcdefghijkmnpqrstuvwxyz";
-  const uppers = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const digits = "23456789";
-  const all = lowers + uppers + digits;
-
-  const required = [
-    lowers[Math.floor(Math.random() * lowers.length)],
-    uppers[Math.floor(Math.random() * uppers.length)],
-    digits[Math.floor(Math.random() * digits.length)],
-  ];
-
-  const rest = Array.from(
-    { length: length - required.length },
-    () => all[Math.floor(Math.random() * all.length)],
-  );
-
-  return [...required, ...rest].sort(() => Math.random() - 0.5).join("");
-};
 
 const parseMultiValueInput = (value: string) =>
   value
@@ -84,7 +62,8 @@ const AddChild = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
-  const [showPwd, setShowPwd] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
 
   const [errors, setErrors] = useState<Errors>({});
   const [touched, setTouched] = useState<Record<keyof Errors, boolean>>({
@@ -100,7 +79,6 @@ const AddChild = () => {
   const [loading, setLoading] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [submitted, setSubmitted] = useState(false);
 
   const [readingLevel, setReadingLevel] = useState("");
   const [responseLength, setResponseLength] = useState("");
@@ -161,7 +139,6 @@ const AddChild = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
 
     const v = validate();
     setErrors(v);
@@ -386,7 +363,7 @@ const AddChild = () => {
                 <Label>{t("password")}</Label>
                 <div className="relative">
                   <Input
-                    type={showPwd ? "text" : "password"}
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onBlur={() => markTouched("password")}
@@ -394,10 +371,11 @@ const AddChild = () => {
 
                   <button
                     type="button"
-                    onClick={() => setShowPwd((s) => !s)}
+                    onClick={() => setShowPassword((value) => !value)}
                     className="absolute right-2 top-2"
+                    aria-label={showPassword ? t("hidePassword") : t("showPassword")}
                   >
-                    {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
 
@@ -410,7 +388,7 @@ const AddChild = () => {
                 <Label>{t("repeatPassword")}</Label>
                 <div className="relative">
                   <Input
-                    type={showPwd ? "text" : "password"}
+                    type={showRepeatPassword ? "text" : "password"}
                     value={repeatPassword}
                     onChange={(e) => setRepeatPassword(e.target.value)}
                     onBlur={() => markTouched("repeatPassword")}
@@ -418,10 +396,13 @@ const AddChild = () => {
 
                   <button
                     type="button"
-                    onClick={() => setShowPwd((s) => !s)}
+                    onClick={() => setShowRepeatPassword((value) => !value)}
                     className="absolute right-2 top-2"
+                    aria-label={
+                      showRepeatPassword ? t("hidePassword") : t("showPassword")
+                    }
                   >
-                    {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showRepeatPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
 
@@ -506,6 +487,7 @@ const AddChild = () => {
               onDraftChange={setInterestsDraft}
               onValuesChange={setInterests}
               placeholder={t("interestsPlaceholder")}
+              t={t}
             />
           </div>
 
@@ -517,6 +499,7 @@ const AddChild = () => {
               onDraftChange={setBlockedTopicsDraft}
               onValuesChange={setBlockedTopics}
               placeholder={t("blockedTopicsPlaceholder")}
+              t={t}
             />
           </div>
           {submitError && <p className="text-red-500">{submitError}</p>}
@@ -566,6 +549,7 @@ interface MultiValueInputProps {
   onDraftChange: (value: string) => void;
   onValuesChange: (values: string[]) => void;
   placeholder: string;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }
 
 const MultiValueInput = ({
@@ -574,6 +558,7 @@ const MultiValueInput = ({
   onDraftChange,
   onValuesChange,
   placeholder,
+  t,
 }: MultiValueInputProps) => {
   const addItems = (rawValue: string) => {
     const parsed = parseMultiValueInput(rawValue);
@@ -635,7 +620,7 @@ const MultiValueInput = ({
                 onValuesChange(values.filter((item) => item !== value))
               }
               className="text-primary/70 hover:text-primary"
-              aria-label={`Remove ${value}`}
+              aria-label={t("removeItemLabel", { item: value })}
             >
               ×
             </button>
@@ -656,12 +641,12 @@ const MultiValueInput = ({
           }}
           onKeyDown={handleKeyDown}
           onBlur={commitDraft}
-          placeholder={values.length === 0 ? placeholder : "Add another item"}
+          placeholder={values.length === 0 ? placeholder : t("addAnotherItem")}
           className="min-w-[180px] flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
         />
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        Type an item, then press Enter, Tab, or comma to add it.
+        {t("multiValueHelper")}
       </p>
     </div>
   );

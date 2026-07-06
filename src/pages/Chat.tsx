@@ -1,18 +1,18 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Menu, Sparkles, Bot } from "lucide-react";
+import { Bot, Menu, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import PlayfulBackground from "@/components/PlayfulBackground";
 import ChatSidebar from "@/components/chat/ChatSidebar";
-import MessageBubble from "@/components/chat/MessageBubble";
+import MessageBubble, { type ChatAttachment } from "@/components/chat/MessageBubble";
 import TypingIndicator from "@/components/chat/TypingIndicator";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatTopControls from "@/components/chat/ChatTopControls";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTranslation } from "react-i18next";
 import {
-  Conversation,
-  AskMessage,
+  type AskMessage,
+  type Conversation,
   createConversation,
   deleteConversation as dbDeleteConversation,
   listConversations,
@@ -29,6 +29,61 @@ import {
 } from "@/lib/drawingStory";
 import { useNotificationHandler } from "@/hooks/useFirebaseNotifications";
 
+const IMAGE_FILE_EXTENSIONS = new Set([
+  "apng",
+  "avif",
+  "bmp",
+  "gif",
+  "heic",
+  "heif",
+  "jpeg",
+  "jpg",
+  "png",
+  "svg",
+  "webp",
+]);
+
+const AUDIO_FILE_EXTENSIONS = new Set([
+  "aac",
+  "flac",
+  "m4a",
+  "mp3",
+  "ogg",
+  "wav",
+  "webm",
+]);
+
+type PersistedAttachmentRecord = Partial<ChatAttachment> & {
+  kind?: string;
+};
+
+const getFileExtension = (fileName: string) =>
+  fileName.split(".").pop()?.trim().toLowerCase() ?? "";
+
+const getAttachmentKind = (file: File): ChatAttachment["kind"] => {
+  const mimeType = file.type.toLowerCase();
+
+  if (mimeType.startsWith("image/")) {
+    return "image";
+  }
+
+  if (mimeType.startsWith("audio/")) {
+    return "audio";
+  }
+
+  const extension = getFileExtension(file.name);
+
+  if (IMAGE_FILE_EXTENSIONS.has(extension)) {
+    return "image";
+  }
+
+  if (AUDIO_FILE_EXTENSIONS.has(extension)) {
+    return "audio";
+  }
+
+  return "file";
+};
+
 type UiMessage = {
   id: number | string;
   role: "user" | "assistant";
@@ -36,20 +91,19 @@ type UiMessage = {
   streaming?: boolean;
   audioUrl?: string;
   imageUrl?: string;
-
+  attachments?: ChatAttachment[];
   responseMode?: string;
   journeyData?: unknown;
 };
 
-
 const Chat = () => {
   const { t } = useTranslation();
-  const SUGGESTED = [
-  { emoji: "🌍", text: t("suggestedQuestion1") },
-  { emoji: "🦖", text: t("suggestedQuestion2") },
-  { emoji: "🚀", text: t("suggestedQuestion3") },
-  { emoji: "🐙", text: t("suggestedQuestion4") },
-];
+  const suggestedMessages = [
+    { emoji: "🌍", text: t("suggestSky") },
+    { emoji: "🦖", text: t("suggestDino") },
+    { emoji: "🚀", text: t("suggestRocket") },
+    { emoji: "🐙", text: t("suggestOctopus") },
+  ];
 
   const { id: routeConvoId } = useParams<{ id?: string }>();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -59,24 +113,18 @@ const Chat = () => {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tokenBalance, setTokenBalance] = useState(0);
+  const [mode, setMode] = useState<"normal" | "journey" | "drawing">("normal");
+  const [drawingConversationId, setDrawingConversationId] = useState<number | null>(null);
+  const [drawingStarted, setDrawingStarted] = useState(false);
+  const [drawingLoading, setDrawingLoading] = useState(false);
+  const [drawingFinished, setDrawingFinished] = useState(false);
+  const [drawingStatus, setDrawingStatus] = useState("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<{ aborted: boolean }>({ aborted: false });
   const { user } = useAuth();
-  const [tokenBalance, setTokenBalance] = useState<number>(0);
-
-  const [mode, setMode] = useState<"normal" | "journey" | "drawing">("normal");
-
-  const [drawingConversationId, setDrawingConversationId] = useState<number | null>(null);
-
-  const [drawingStarted, setDrawingStarted] = useState(false);
-
-  const [drawingLoading, setDrawingLoading] = useState(false);
-
-  const [drawingFinished, setDrawingFinished] = useState(false);
-
-  const [drawingStatus, setDrawingStatus] = useState("");
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const resetDrawingState = useCallback(
     (nextMode: "normal" | "journey" | "drawing" = "normal") => {
@@ -88,17 +136,132 @@ const Chat = () => {
     },
     [],
   );
-  
+
+  const createAttachmentsFromFiles = useCallback(
+    (files: File[]): ChatAttachment[] =>
+      files.map((file) => {
+        const previewUrl = URL.createObjectURL(file);
+        const kind = getAttachmentKind(file);
+
+        if (kind === "image") {
+          return {
+            kind: "image",
+            name: file.name || t("chatAttachmentImage"),
+            url: previewUrl,
+            mimeType: file.type,
+          };
+        }
+
+        if (kind === "audio") {
+          return {
+            kind: "audio",
+            name: file.name || t("chatAttachmentAudio"),
+            url: previewUrl,
+            mimeType: file.type,
+          };
+        }
+
+        return {
+          kind: "file",
+          name: file.name || t("chatAttachmentFile"),
+          url: previewUrl,
+          mimeType: file.type,
+        };
+      }),
+    [t],
+  );
+
+  const createPersistedAttachments = useCallback(
+    (message: AskMessage): ChatAttachment[] => {
+      const persistedAttachments = (() => {
+        if (!message.journeyData || typeof message.journeyData !== "object") {
+          return [];
+        }
+
+        const candidate = (message.journeyData as { attachments?: unknown }).attachments;
+
+        if (!Array.isArray(candidate)) {
+          return [];
+        }
+
+        return candidate.flatMap((attachment) => {
+          if (!attachment || typeof attachment !== "object") {
+            return [];
+          }
+
+          const record = attachment as PersistedAttachmentRecord;
+
+          if (
+            record.kind !== "image" &&
+            record.kind !== "audio" &&
+            record.kind !== "file"
+          ) {
+            return [];
+          }
+
+          const defaultName =
+            record.kind === "image"
+              ? t("chatAttachmentImage")
+              : record.kind === "audio"
+                ? t("chatAttachmentAudio")
+                : t("chatAttachmentFile");
+
+          return [
+            {
+              kind: record.kind,
+              name:
+                typeof record.name === "string" && record.name.trim().length > 0
+                  ? record.name
+                  : defaultName,
+              url: typeof record.url === "string" ? record.url : undefined,
+              mimeType:
+                typeof record.mimeType === "string" ? record.mimeType : undefined,
+              description:
+                typeof record.description === "string"
+                  ? record.description
+                  : undefined,
+            } satisfies ChatAttachment,
+          ];
+        });
+      })();
+
+      if (persistedAttachments.length > 0) {
+        return persistedAttachments;
+      }
+
+      const attachments: ChatAttachment[] = [];
+
+      if (message.imageDescription) {
+        attachments.push({
+          kind: "image",
+          name: t("chatAttachmentImage"),
+          description: message.imageDescription,
+        });
+      }
+
+      if (message.voiceText) {
+        attachments.push({
+          kind: "audio",
+          name: t("chatAttachmentAudio"),
+          description: message.voiceText,
+        });
+      }
+
+      return attachments;
+    },
+    [t],
+  );
+
   useNotificationHandler({
     type: "AI_PROGRESS",
     handler: (payload) => {
       setDrawingStatus(payload.data?.step || "");
     },
   });
-    
+
   useEffect(() => {
-    getTokenStats().then((res) => {
-      setTokenBalance(res.data.tokenBalance);
+    void getTokenStats().then((response) => {
+      setTokenBalance(response.data.tokenBalance);
     });
   }, []);
 
@@ -125,32 +288,34 @@ const Chat = () => {
     }
   }, [routeConvoId, conversations]);
 
-  // Load messages when active conversation changes
   useEffect(() => {
     if (!activeId || streaming) return;
+
     setLoadingMsgs(true);
+
     (async () => {
       try {
-        const [msgs, drawingSession] = await Promise.all([
+        const [loadedMessages, drawingSession] = await Promise.all([
           listMessages(activeId),
           getDrawingStorySession(activeId),
         ]);
+
         setMessages(
-          msgs.flatMap((m) => [
+          loadedMessages.flatMap((message) => [
             {
-              id: `q_${m.id}`,
+              id: `q_${message.id}`,
               role: "user",
-              content: m.question,
+              content: message.question,
+              attachments: createPersistedAttachments(message),
             },
             {
-              id: `a_${m.id}`,
+              id: `a_${message.id}`,
               role: "assistant",
-              content: m.answer,
-              audioUrl: m.audioUrl,
-              imageUrl: m.imageUrl,
-
-              responseMode: m.responseMode,
-              journeyData: m.journeyData,
+              content: message.answer,
+              audioUrl: message.audioUrl,
+              imageUrl: message.imageUrl,
+              responseMode: message.responseMode,
+              journeyData: message.journeyData,
             },
           ]),
         );
@@ -170,9 +335,8 @@ const Chat = () => {
         setLoadingMsgs(false);
       }
     })();
-  }, [activeId, resetDrawingState, streaming, t]);
+  }, [activeId, createPersistedAttachments, resetDrawingState, streaming, t]);
 
-  // Auto-scroll
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
@@ -190,7 +354,7 @@ const Chat = () => {
     async (id: number) => {
       try {
         await dbDeleteConversation(id);
-        setConversations((prev) => prev.filter((c) => c.id !== id));
+        setConversations((prev) => prev.filter((conversation) => conversation.id !== id));
         if (activeId === id) {
           setActiveId(null);
           setMessages([]);
@@ -205,115 +369,120 @@ const Chat = () => {
   );
 
   const handleSend = async (text: string, files: File[] = []) => {
-    if(mode==="drawing" && drawingStarted){
-      const userMessage={
-        id:Date.now(),
-        role:"user" as const,
-        content:text
-      }
+    if (mode === "drawing" && drawingStarted) {
+      const userMessage: UiMessage = {
+        id: Date.now(),
+        role: "user",
+        content: text,
+      };
 
-      setMessages(prev=>[...prev,userMessage]);
+      setMessages((prev) => [...prev, userMessage]);
 
-      try{
+      try {
         setStreaming(true);
-        const res=await sendDrawingStoryMessage({
-          conversationId:drawingConversationId,
-          message:text,
+        const response = await sendDrawingStoryMessage({
+          conversationId: drawingConversationId,
+          message: text,
         });
         setStreaming(false);
-        
 
-        if (res.data.finished) {
+        if (response.data.finished) {
           setDrawingFinished(true);
-        }else{
-        setMessages(prev => [
-        ...prev,
-        {
-          id: Date.now(),
-          role: "assistant",
-          content: res.data.reply,
-        },
-      ]);
-      }
-      }catch (e) {
-        console.error(e);
-        toast.error("Couldn't send message");
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now() + 1,
+              role: "assistant",
+              content: response.data.reply,
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error(t("chatSendFailed"));
       } finally {
-          setStreaming(false);
+        setStreaming(false);
       }
-      return
+      return;
     }
 
     if (!user) return;
-    let convoId = activeId;
-    // Auto-create conversation if none active
-    if (!convoId) {
+
+    let conversationId = activeId;
+
+    if (!conversationId) {
       try {
-        const c = await createConversation(text.slice(0, 40));
-        setConversations((prev) => [c, ...prev]);
-        setActiveId(c.id);
-        convoId = c.id;
+        const titleSeed = text.trim() || files[0]?.name || t("chatNewConversation");
+        const conversation = await createConversation(titleSeed.slice(0, 40));
+        setConversations((prev) => [conversation, ...prev]);
+        setActiveId(conversation.id);
+        conversationId = conversation.id;
       } catch {
         toast.error(t("couldntStartChat"));
         return;
       }
     }
 
-    // Persist user message + optimistic UI
     const optimisticUser: UiMessage = {
       id: `tmp_${Date.now()}`,
       role: "user",
       content: text,
+      attachments: createAttachmentsFromFiles(files),
     };
+
     setMessages((prev) => [...prev, optimisticUser]);
 
-    // Add empty assistant placeholder
     const assistantTmpId = `asst_${Date.now()}`;
     setMessages((prev) => [
       ...prev,
       { id: assistantTmpId, role: "assistant", content: "", streaming: true },
     ]);
+
     setStreaming(true);
     abortRef.current = { aborted: false };
 
-    let acc = "";
+    let accumulated = "";
+
     await streamChat({
       question: text,
-      conversationId: convoId!,
+      conversationId,
       files,
-      mode,
+      mode: mode === "drawing" ? "normal" : mode,
       onDelta: (chunk) => {
         if (abortRef.current.aborted) return;
-        acc += chunk;
-        setMessages((prev) => {
-          const newMessages = prev.map((m) =>
-            m.id === assistantTmpId ? { ...m, content: acc } : m,
-          );
-          return newMessages;
-        });
-      },
-      onDone: async () => {
-        setStreaming(false);
+        accumulated += chunk;
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantTmpId ? { ...m, streaming: false } : m,
+          prev.map((message) =>
+            message.id === assistantTmpId ? { ...message, content: accumulated } : message,
           ),
         );
       },
-      onError: (msg) => {
+      onDone: () => {
         setStreaming(false);
-        setMessages((prev) => prev.filter((m) => m.id !== assistantTmpId));
-        toast.error(msg);
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === assistantTmpId ? { ...message, streaming: false } : message,
+          ),
+        );
+      },
+      onError: (message) => {
+        setStreaming(false);
+        setMessages((prev) => prev.filter((item) => item.id !== assistantTmpId));
+        toast.error(message);
       },
       onAudio: (audioUrl) => {
         setMessages((prev) =>
-          prev.map((m) => (m.id === assistantTmpId ? { ...m, audioUrl } : m)),
+          prev.map((message) =>
+            message.id === assistantTmpId ? { ...message, audioUrl } : message,
+          ),
         );
       },
-
       onImage: (imageUrl) => {
         setMessages((prev) =>
-          prev.map((m) => (m.id === assistantTmpId ? { ...m, imageUrl } : m)),
+          prev.map((message) =>
+            message.id === assistantTmpId ? { ...message, imageUrl } : message,
+          ),
         );
       },
     });
@@ -323,72 +492,71 @@ const Chat = () => {
     abortRef.current.aborted = true;
     setStreaming(false);
     setMessages((prev) =>
-      prev.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
+      prev.map((message) => (message.streaming ? { ...message, streaming: false } : message)),
     );
   };
 
-const handleStartDrawing = async (file: File) => {
-  try {
-    setDrawingLoading(true);
+  const handleStartDrawing = async (file: File) => {
+    try {
+      setDrawingLoading(true);
 
-    const res = await startDrawingStory(file);
-    setDrawingConversationId(res.data.conversationId);
-    setActiveId(res.data.conversationId);
-    setMode("drawing");
-    setDrawingStarted(true);
-    setDrawingFinished(false);
-    setDrawingStatus("");
-    setConversations((prev) => [
-      {
-        id: res.data.conversationId,
-        title: "Drawing Story",
-        lastActivity: new Date().toISOString(),
-      },
-      ...prev.filter((conversation) => conversation.id !== res.data.conversationId),
-    ]);
+      const response = await startDrawingStory(file);
+      setDrawingConversationId(response.data.conversationId);
+      setActiveId(response.data.conversationId);
+      setMode("drawing");
+      setDrawingStarted(true);
+      setDrawingFinished(false);
+      setDrawingStatus("");
+      setConversations((prev) => [
+        {
+          id: response.data.conversationId,
+          title: t("chatDrawingStoryTitle"),
+          lastActivity: new Date().toISOString(),
+        },
+        ...prev.filter(
+          (conversation) => conversation.id !== response.data.conversationId,
+        ),
+      ]);
 
-    setMessages([
-      {
-        id: Date.now(),
-        role: "assistant",
-        content: res.data.reply,
-      },
-    ]);
-  } catch (e) {
-    toast.error("Couldn't analyze drawing");
-  } finally {
-    setDrawingLoading(false);
-  }
-};
+      setMessages([
+        {
+          id: Date.now(),
+          role: "assistant",
+          content: response.data.reply,
+        },
+      ]);
+    } catch (error) {
+      console.error(error);
+      toast.error(t("chatAnalyzeDrawingFailed"));
+    } finally {
+      setDrawingLoading(false);
+    }
+  };
 
   const handleGenerateStory = async () => {
-  if (!drawingConversationId) return;
+    if (!drawingConversationId) return;
 
-  try {
-    setDrawingStatus("Starting...");
-    setDrawingLoading(true);
-    await generateStoryFromDrawing({
-      conversationId: drawingConversationId,
-    });
-    // await new Promise((r) => setTimeout(r, 1000));
-    // await new Promise((r) => setTimeout(r, 1000));
-    toast.success("Story created!");
-    navigate("/my-stories");
-  } catch {
-    toast.error("Couldn't generate story");
-  } finally {
-    setDrawingLoading(false);
-    setDrawingStatus("")
-  }
-};
+    try {
+      setDrawingStatus(t("generating"));
+      setDrawingLoading(true);
+      await generateStoryFromDrawing({
+        conversationId: drawingConversationId,
+      });
+      toast.success(t("chatStoryCreated"));
+      navigate("/my-stories");
+    } catch {
+      toast.error(t("chatGenerateStoryFailed"));
+    } finally {
+      setDrawingLoading(false);
+      setDrawingStatus("");
+    }
+  };
+
   const showEmpty = !loadingMsgs && messages.length === 0;
 
   return (
-    <div className="min-h-screen bg-background relative flex">
-      <div
-        className="absolute inset-0 playful-bg opacity-40 pointer-events-none"
-        aria-hidden
-      />
+    <div className="relative flex min-h-screen bg-background">
+      <div className="playful-bg pointer-events-none absolute inset-0 opacity-40" aria-hidden />
       <PlayfulBackground />
 
       <ChatSidebar
@@ -402,129 +570,103 @@ const handleStartDrawing = async (file: File) => {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
-        {/* Mobile header */}
-        <header className="lg:hidden sticky top-0 z-20 bg-card/80 backdrop-blur border-b border-border/50 px-3 py-2.5 flex items-center gap-2">
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-border/50 bg-card/80 px-3 py-2.5 backdrop-blur lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted transition-colors"
+            className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-muted"
             aria-label={t("openChats")}
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-button">
-              <Sparkles
-                className="w-4 h-4 text-primary-foreground"
-                strokeWidth={2.5}
-              />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary shadow-button">
+              <Sparkles className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
             </div>
             <span className="font-bold">{t("sparkyName")}</span>
           </div>
           <ChatTopControls />
         </header>
 
-        {/* Desktop floating controls (theme + logout) */}
-        <div className="hidden lg:flex absolute top-4 right-4 z-30 animate-fade-slide-up">
+        <div className="absolute right-4 top-4 z-30 hidden animate-fade-slide-up lg:flex">
           <ChatTopControls />
         </div>
 
-        {/* Messages scroll area */}
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto px-3 sm:px-6 py-6"
-        >
-          <div className="max-w-3xl mx-auto space-y-4">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-6 sm:px-6">
+          <div className="mx-auto max-w-3xl space-y-4">
             {loadingMsgs ? (
               <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex gap-2">
-                    <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
-                    <div className="h-16 flex-1 max-w-md rounded-2xl bg-muted animate-pulse" />
+                {[1, 2, 3].map((item) => (
+                  <div key={item} className="flex gap-2">
+                    <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
+                    <div className="h-16 max-w-md flex-1 animate-pulse rounded-2xl bg-muted" />
                   </div>
                 ))}
               </div>
             ) : showEmpty ? (
-              <div className="flex flex-col items-center text-center py-12 animate-fade-slide-up">
-                <div className="w-20 h-20 rounded-3xl bg-gradient-primary flex items-center justify-center shadow-card mb-5">
-                  <Bot
-                    className="w-10 h-10 text-primary-foreground"
-                    strokeWidth={2.2}
-                  />
+              <div className="flex flex-col items-center py-12 text-center animate-fade-slide-up">
+                <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-primary shadow-card">
+                  <Bot className="h-10 w-10 text-primary-foreground" strokeWidth={2.2} />
                 </div>
-                <h1 className="text-3xl font-bold mb-2">{t("chatWelcome")}</h1>
-                <p className="text-muted-foreground mb-8 max-w-md">
-                  {t("chatDescription")}
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
-                  {SUGGESTED.map((s) => (
+                <h1 className="mb-2 text-3xl font-bold">{t("chatWelcome")}</h1>
+                <p className="mb-8 max-w-md text-muted-foreground">{t("chatDescription")}</p>
+                <div className="grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
+                  {suggestedMessages.map((suggestion) => (
                     <button
-                      key={s.text}
-                      onClick={() => handleSend(s.text)}
+                      key={suggestion.text}
+                      onClick={() => handleSend(suggestion.text)}
                       disabled={streaming}
-                      className="text-left p-4 rounded-2xl bg-card border-2 border-border/60 hover:border-primary/50 hover:shadow-card hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="rounded-2xl border-2 border-border/60 bg-card p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <div className="text-2xl mb-1">{s.emoji}</div>
-                      <div className="text-sm font-semibold">{s.text}</div>
+                      <div className="mb-1 text-2xl">{suggestion.emoji}</div>
+                      <div className="text-sm font-semibold">{suggestion.text}</div>
                     </button>
                   ))}
                 </div>
               </div>
             ) : (
               <>
-                {/* {messages.map((m) => (
-                  <MessageBubble
-                    key={m.id}
-                    role={m.role}
-                    content={m.content}
-                    isStreaming={m.streaming}
-                    audioUrl={m.audioUrl}
-                    imageUrl={m.imageUrl}
-                  />
-                ))} */}
-                {messages.map((m) => {
-                if (m.role === "assistant" && m.responseMode === "journey") {
+                {messages.map((message) => {
+                  if (message.role === "assistant" && message.responseMode === "journey") {
+                    return (
+                      <JourneyMessage
+                        key={message.id}
+                        content={message.content}
+                        audioUrl={message.audioUrl}
+                        imageUrl={message.imageUrl}
+                      />
+                    );
+                  }
+
                   return (
-                    <JourneyMessage
-                      key={m.id}
-                      content={m.content}
-                      audioUrl={m.audioUrl}
-                      imageUrl={m.imageUrl}
+                    <MessageBubble
+                      key={message.id}
+                      role={message.role}
+                      content={message.content}
+                      imageUrl={message.imageUrl}
+                      audioUrl={message.audioUrl}
+                      attachments={message.attachments}
+                      isStreaming={message.streaming}
                     />
                   );
-                }
-
-                return (
-                  <MessageBubble
-                    key={m.id}
-                    role={m.role}
-                    content={m.content}
-                    imageUrl={m.imageUrl}
-                    audioUrl={m.audioUrl}
-                  />
-                );
-              })}
-                {streaming && messages[messages.length - 1]?.content === "" && (
-                  <TypingIndicator />
-                )}
+                })}
+                {streaming && messages[messages.length - 1]?.content === "" ? <TypingIndicator /> : null}
               </>
             )}
           </div>
         </div>
 
-        {drawingFinished && (
-        <div className="flex justify-center mb-4">
-          <button
-            onClick={handleGenerateStory}
-            className="bg-purple-600 text-white px-6 py-3 rounded-xl"
-            disabled={drawingLoading}
-          >
-            {drawingLoading
-              ? drawingStatus
-              : "Bring My Drawing To Life"}
-          </button>
-        </div>
-      )}
+        {drawingFinished ? (
+          <div className="mb-4 flex justify-center">
+            <button
+              onClick={handleGenerateStory}
+              className="rounded-xl bg-purple-600 px-6 py-3 text-white"
+              disabled={drawingLoading}
+            >
+              {drawingLoading ? drawingStatus : t("chatBringDrawingToLife")}
+            </button>
+          </div>
+        ) : null}
 
         <ChatInput
           onSend={handleSend}

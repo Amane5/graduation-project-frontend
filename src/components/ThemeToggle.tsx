@@ -1,4 +1,5 @@
 import { Moon, Sun } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +8,7 @@ interface ThemeToggleProps {
 }
 
 const ThemeToggle = ({ className }: ThemeToggleProps) => {
+  const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
 
@@ -14,8 +16,8 @@ const ThemeToggle = ({ className }: ThemeToggleProps) => {
     <button
       type="button"
       onClick={toggleTheme}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      title={isDark ? "Light mode" : "Dark mode"}
+      aria-label={isDark ? t("switchToLightMode") : t("switchToDarkMode")}
+      title={isDark ? t("lightMode") : t("darkMode")}
       className={cn(
         "relative w-10 h-10 rounded-xl flex items-center justify-center text-foreground hover:bg-muted/60 transition-all duration-300 hover:scale-110 active:scale-95",
         className,

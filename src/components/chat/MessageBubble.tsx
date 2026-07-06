@@ -1,179 +1,145 @@
-// import { Bot, User } from "lucide-react";
-// import ReactMarkdown from "react-markdown";
-// import { cn } from "@/lib/utils";
-
-// interface MessageBubbleProps {
-//   role: "user" | "assistant";
-//   content: string;
-//   isStreaming?: boolean;
-//   audioUrl?: string;
-//   imageUrl?: string;
-// }
-
-// const MessageBubble = ({ role, content, isStreaming }: MessageBubbleProps) => {
-//   const isUser = role === "user";
-//   return (
-//     <div
-//       className={cn(
-//         "flex items-end gap-2 animate-fade-slide-up",
-//         isUser ? "flex-row-reverse" : "flex-row",
-//       )}
-//     >
-//       <div
-//         className={cn(
-//           "w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-button",
-//           isUser ? "bg-secondary" : "bg-gradient-primary",
-//         )}
-//       >
-//         {isUser ? (
-//           <User className="w-4 h-4 text-secondary-foreground" strokeWidth={2.5} />
-//         ) : (
-//           <Bot className="w-4 h-4 text-primary-foreground" strokeWidth={2.5} />
-//         )}
-//       </div>
-//       <div
-//         className={cn(
-//           "max-w-[80%] sm:max-w-[75%] px-4 py-3 shadow-soft border",
-//           isUser
-//             ? "bg-gradient-primary text-primary-foreground border-transparent rounded-2xl rounded-br-sm"
-//             : "bg-card text-card-foreground border-border/50 rounded-2xl rounded-bl-sm",
-//         )}
-//       >
-// {isUser ? (
-//   <p className="text-sm leading-relaxed whitespace-pre-wrap">
-//     {content}
-//   </p>
-// ) : (
-//   <div className="space-y-3">
-
-//     {/* MARKDOWN ONLY */}
-//     <div className="prose prose-sm max-w-none prose-p:my-2 prose-p:leading-relaxed prose-strong:text-primary prose-ul:my-2 prose-li:my-0.5">
-      
-//       <ReactMarkdown>{content || "…"}</ReactMarkdown>
-
-//       {isStreaming && (
-//         <span className="inline-block w-1.5 h-4 bg-primary/70 ml-0.5 align-middle animate-pulse rounded-sm" />
-//       )}
-//     </div>
-
-//     {/* IMAGE */}
-//     {imageUrl && (
-//       <img
-//         src={`${import.meta.env.VITE_API_URL}${imageUrl}`}
-//         alt="AI generated"
-//         className="rounded-2xl w-full max-w-xs border"
-//       />
-//     )}
-
-//     {/* AUDIO */}
-//     {audioUrl && (
-//       <audio controls className="w-full">
-//         <source
-//           src={`${import.meta.env.VITE_API_URL}${audioUrl}`}
-//           type="audio/mpeg"
-//         />
-//       </audio>
-//     )}
-
-//   </div>
-// )}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default MessageBubble;
-
-
-
-import { Bot, User } from "lucide-react";
+import { Bot, FileText, ImageIcon, Music2, User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+
+export type ChatAttachment = {
+  kind: "image" | "audio" | "file";
+  name: string;
+  url?: string;
+  mimeType?: string;
+  description?: string;
+};
 
 interface MessageBubbleProps {
   role: "user" | "assistant";
   content: string;
   imageUrl?: string;
   audioUrl?: string;
+  attachments?: ChatAttachment[];
   isStreaming?: boolean;
 }
+
+const resolveAssetUrl = (url?: string) => {
+  if (!url) return undefined;
+  if (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("http")) {
+    return url;
+  }
+  return `${import.meta.env.VITE_API_URL}${url}`;
+};
+
+const AttachmentCard = ({ attachment }: { attachment: ChatAttachment }) => {
+  const { t } = useTranslation();
+  const resolvedUrl = resolveAssetUrl(attachment.url);
+
+  if (attachment.kind === "image") {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-background/80">
+        {resolvedUrl ? (
+          <img
+            src={resolvedUrl}
+            alt={attachment.name || t("chatAttachmentImage")}
+            className="max-h-72 w-full object-cover"
+          />
+        ) : (
+          <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+            <ImageIcon className="h-4 w-4" />
+            <span>{attachment.name || t("chatAttachmentImage")}</span>
+          </div>
+        )}
+        {attachment.description ? (
+          <p className="border-t border-border/60 p-3 text-xs text-muted-foreground">
+            {attachment.description}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (attachment.kind === "audio") {
+    return (
+      <div className="rounded-2xl border border-border/60 bg-background/80 p-3">
+        <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+          <Music2 className="h-4 w-4" />
+          <span>{attachment.name || t("chatAttachmentAudio")}</span>
+        </div>
+        {resolvedUrl ? <audio controls src={resolvedUrl} className="w-full" /> : null}
+        {attachment.description ? (
+          <p className="mt-2 text-xs text-muted-foreground">{attachment.description}</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/80 p-3 text-sm">
+      <FileText className="h-4 w-4 shrink-0" />
+      <span className="truncate">{attachment.name || t("chatAttachmentFile")}</span>
+    </div>
+  );
+};
 
 const MessageBubble = ({
   role,
   content,
   imageUrl,
   audioUrl,
+  attachments = [],
   isStreaming,
 }: MessageBubbleProps) => {
   const isUser = role === "user";
-console.log({
-  role,
-  content,
-  imageUrl,
-});
+  const assistantImageUrl = resolveAssetUrl(imageUrl);
+  const assistantAudioUrl = resolveAssetUrl(audioUrl);
+  const hasContent = content.trim().length > 0;
+
   return (
     <div
       className={cn(
         "flex items-end gap-2 animate-fade-slide-up",
-        isUser ? "flex-row-reverse" : "flex-row"
+        isUser ? "flex-row-reverse" : "flex-row",
       )}
     >
-      {/* avatar */}
       <div
         className={cn(
-          "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-          isUser ? "bg-secondary" : "bg-gradient-primary"
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+          isUser ? "bg-secondary" : "bg-gradient-primary",
         )}
       >
-        {isUser ? (
-          <User className="w-4 h-4" />
-        ) : (
-          <Bot className="w-4 h-4 text-white" />
-        )}
+        {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4 text-white" />}
       </div>
 
-      {/* bubble */}
       <div
         className={cn(
-          "max-w-[80%] px-4 py-3 rounded-2xl border shadow-soft",
-          isUser
-            ? "bg-gradient-primary text-white"
-            : "bg-card text-card-foreground"
+          "max-w-[80%] rounded-2xl border px-4 py-3 shadow-soft",
+          isUser ? "bg-gradient-primary text-white" : "bg-card text-card-foreground",
         )}
       >
-        <ReactMarkdown>{content || "🖼️"}</ReactMarkdown>
+        {hasContent ? <ReactMarkdown>{content}</ReactMarkdown> : null}
 
-        {/* {imageUrl && (
+        {attachments.length > 0 ? (
+          <div className={cn("space-y-3", hasContent ? "mt-3" : "")}>
+            {attachments.map((attachment, index) => (
+              <AttachmentCard
+                key={`${attachment.kind}-${attachment.name}-${attachment.url ?? "no-url"}-${index}`}
+                attachment={attachment}
+              />
+            ))}
+          </div>
+        ) : null}
+
+        {!isUser && assistantImageUrl ? (
           <img
-            src={`${import.meta.env.VITE_API_URL}${imageUrl}`}
-            className="rounded-xl mt-2"
+            src={assistantImageUrl}
+            className="mt-3 max-w-xs rounded-xl border shadow"
+            alt="assistant attachment"
           />
-        )} */}
-        {imageUrl && (
-  <img
-    src={
-      imageUrl.startsWith("blob:") ||
-      imageUrl.startsWith("data:") ||
-      imageUrl.startsWith("http")
-        ? imageUrl
-        : `${import.meta.env.VITE_API_URL}${imageUrl}`
-    }
-    className="rounded-xl mt-2 max-w-xs border shadow"
-    alt="uploaded"
-  />
-)}
+        ) : null}
 
-        {audioUrl && (
-          <audio
-            controls
-            src={`${import.meta.env.VITE_API_URL}${audioUrl}`}
-            className="mt-2 w-full"
-          />
-        )}
+        {!isUser && assistantAudioUrl ? (
+          <audio controls src={assistantAudioUrl} className="mt-3 w-full" />
+        ) : null}
 
-        {isStreaming && (
-          <span className="inline-block animate-pulse ml-1">...</span>
-        )}
+        {isStreaming ? <span className="ml-1 inline-block animate-pulse">...</span> : null}
       </div>
     </div>
   );
