@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-// import { useTranslation } from "react-i18next";
 import {
   Users,
   MessageCircleQuestion,
-  Clock,
   UserPlus,
   BookOpen,
   UsersRound,
@@ -31,6 +29,7 @@ import {
 } from "@/lib/children";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+
 type LoadState = "loading" | "ready" | "error";
 
 const Dashboard = () => {
@@ -49,10 +48,8 @@ const Dashboard = () => {
     questionsToday: 0,
     activeMinutes: null,
   });
-
   const [deleting, setDeleting] = useState<Child | null>(null);
 
-  // LOAD CHILDREN
   useEffect(() => {
     const load = async () => {
       try {
@@ -62,6 +59,7 @@ const Dashboard = () => {
           getChildren(),
           getDashboardStats(),
         ]);
+
         setChildren(childrenResponse.data || []);
         setStats(dashboardStatsResponse.data.data);
         setState("ready");
@@ -72,7 +70,7 @@ const Dashboard = () => {
     };
 
     if (accessToken) {
-      load();
+      void load();
     }
 
     window.addEventListener("focus", load);
@@ -83,9 +81,7 @@ const Dashboard = () => {
   const handleDelete = async (child: Child) => {
     try {
       await deleteChildById(child.id);
-
       setChildren((prev) => prev.filter((c) => c.id !== child.id));
-
       toast.success(t("childRemoved"));
     } catch {
       toast.error(t("failedDeleteChild"));
@@ -108,7 +104,7 @@ const Dashboard = () => {
             </p>
           </div>
 
-          <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+          <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
             <StatCard
               label={t("totalChildren")}
               value={stats.totalChildren}
@@ -124,24 +120,6 @@ const Dashboard = () => {
               emoji="❓"
               gradient="from-secondary to-primary-glow"
               delay={100}
-            />
-            <StatCard
-              label={t("activeTime")}
-              value={
-                stats.activeMinutes === null
-                  ? t("notAvailableShort")
-                  : stats.activeMinutes
-              }
-              suffix={stats.activeMinutes === null ? undefined : t("minutes")}
-              icon={Clock}
-              emoji="⏱"
-              gradient="from-accent to-secondary"
-              delay={200}
-              helperText={
-                stats.activeMinutes === null
-                  ? t("activeTimeUnavailable")
-                  : undefined
-              }
             />
           </section>
 
@@ -162,31 +140,31 @@ const Dashboard = () => {
               </Link>
             </div>
 
-            {state === "loading" && (
+            {state === "loading" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[1, 2, 3].map((i) => (
                   <ChildCardSkeleton key={i} delay={i * 80} />
                 ))}
               </div>
-            )}
+            ) : null}
 
-            {state === "error" && (
+            {state === "error" ? (
               <div className="text-center p-10 border border-red-200 rounded-2xl">
                 <AlertCircle className="mx-auto text-red-500" />
                 <p className="mt-2">{t("failedLoadChildren")}</p>
               </div>
-            )}
+            ) : null}
 
-            {state === "ready" && children.length === 0 && (
+            {state === "ready" && children.length === 0 ? (
               <div className="text-center p-10">
                 <p>{t("noChildrenYet")}</p>
                 <Link to="/add-child">
                   <Button className="mt-4">{t("addFirstChild")}</Button>
                 </Link>
               </div>
-            )}
+            ) : null}
 
-            {state === "ready" && children.length > 0 && (
+            {state === "ready" && children.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {children.map((child, i) => (
                   <ChildCard
@@ -196,7 +174,7 @@ const Dashboard = () => {
                       navigate(`/edit-child/${child.id}`, { state: child })
                     }
                     onDelete={() => setDeleting(child)}
-                     onReports={() =>
+                    onReports={() =>
                       navigate(`/reports/${child.id}`, {
                         state: {
                           childName: `${child.firstName} ${child.lastName}`,
@@ -207,7 +185,7 @@ const Dashboard = () => {
                   />
                 ))}
               </div>
-            )}
+            ) : null}
           </section>
 
           <section className="mt-10">
@@ -242,7 +220,6 @@ const Dashboard = () => {
                 icon={Sparkles}
                 gradient="from-purple-500 to-pink-500"
               />
-
               <QuickActionCard
                 to="/my-stories"
                 label={t("myStories")}
@@ -250,7 +227,6 @@ const Dashboard = () => {
                 icon={BookOpen}
                 gradient="from-blue-500 to-indigo-500"
               />
-
               <QuickActionCard
                 to="/challenges"
                 label={t("challenges")}
@@ -265,9 +241,14 @@ const Dashboard = () => {
 
       <DeleteChildModal
         open={!!deleting}
-        onOpenChange={(o) => !o && setDeleting(null)}
-        child={deleting}
-        onConfirm={() => deleting && handleDelete(deleting)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleting(null);
+          }
+        }}
+        title="Delete Child"
+        description="Are you sure you want to delete this child?"
+        onConfirm={() => (deleting ? handleDelete(deleting) : undefined)}
       />
     </div>
   );

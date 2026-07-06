@@ -26,6 +26,7 @@ import {
   deleteChallenge,
 } from "@/lib/challenge";
 import { formatDateTime } from "@/lib/date";
+import DeleteChildModal from "@/components/dashboard/DeleteChildModal";
 
 interface Challenge {
   id: number;
@@ -76,14 +77,12 @@ const Challenges = () => {
     loadChallenges();
   }, []);
 
-  const handleDelete = async (
-    challengeId: number
-  ) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this challenge?"
-    );
+  const handleDelete = async (challengeId: number) => {
+    // const confirmed = window.confirm(
+    //   "Are you sure you want to delete this challenge?"
+    // );
 
-    if (!confirmed) return;
+    // if (!confirmed) return;
 
     try {
       setDeletingId(challengeId);
@@ -333,9 +332,7 @@ const Challenges = () => {
                             challenge.id
                           }
                           onClick={() =>
-                            handleDelete(
-                              challenge.id
-                            )
+                            setDeletingId(challenge.id)
                           }
                         >
                           {deletingId ===
@@ -373,6 +370,13 @@ const Challenges = () => {
           </Link>
         </main>
       </div>
+      <DeleteChildModal
+              open={!!deletingId}
+              onOpenChange={(o) => !o && setDeletingId(null)}
+              title="Delete Challenge"
+              description="Are you sure you want to delete this challenge?"
+              onConfirm={() => deletingId && handleDelete(deletingId)}
+        />
     </div>
   );
 };

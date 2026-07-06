@@ -203,11 +203,11 @@ const History = () => {
                   ? t("startChattingDescription")
                   : t("differentSearchTerm")}
               </p>
-              {convos.length === 0 && (
+              {/* {convos.length === 0 && (
                 <Link to="/chat">
                   <Button variant="hero">{t("startChat")}</Button>
                 </Link>
-              )}
+              )} */}
             </div>
           )}
 

@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 interface Errors {
   firstName?: string;
   gender?: string;
@@ -59,6 +60,12 @@ const generatePassword = (length = 10): string => {
 
   return [...required, ...rest].sort(() => Math.random() - 0.5).join("");
 };
+
+const parseMultiValueInput = (value: string) =>
+  value
+    .split(/[,\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 
 const AddChild = () => {
   const { t } = useTranslation();
@@ -100,6 +107,8 @@ const AddChild = () => {
   const [learningStyle, setLearningStyle] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
   const [blockedTopics, setBlockedTopics] = useState<string[]>([]);
+  const [interestsDraft, setInterestsDraft] = useState("");
+  const [blockedTopicsDraft, setBlockedTopicsDraft] = useState("");
 
   const validate = (): Errors => {
     const e: Errors = {};
@@ -252,6 +261,8 @@ const AddChild = () => {
     setLearningStyle(editingChild.learningStyle || "");
     setInterests(editingChild.interests || []);
     setBlockedTopics(editingChild.blockedTopics || []);
+    setInterestsDraft("");
+    setBlockedTopicsDraft("");
   }, [editingChild]);
   useEffect(() => {
     if (editId && !editingChild) {
@@ -267,6 +278,13 @@ const AddChild = () => {
           // );
           setBirthDate(child.birthDate.split("T")[0]);
           setUsername(child.username || "");
+          setReadingLevel(child.readingLevel || "");
+          setResponseLength(child.responseLength || "");
+          setLearningStyle(child.learningStyle || "");
+          setInterests(child.interests || []);
+          setBlockedTopics(child.blockedTopics || []);
+          setInterestsDraft("");
+          setBlockedTopicsDraft("");
         })
         .catch(() => navigate("/dashboard"))
         .finally(() => setLoading(false));
@@ -282,6 +300,13 @@ const AddChild = () => {
     setUsername("");
     setPassword("");
     setRepeatPassword("");
+    setReadingLevel("");
+    setResponseLength("");
+    setLearningStyle("");
+    setInterests([]);
+    setBlockedTopics([]);
+    setInterestsDraft("");
+    setBlockedTopicsDraft("");
   }, [isEditMode, editId]);
   return (
     <div className="min-h-screen relative">
@@ -475,35 +500,23 @@ const AddChild = () => {
 
           <div className="space-y-2">
             <Label>{t("interests")}</Label>
-
-            <Input
-              placeholder="cats,cars,space"
-              value={interests.join(", ")}
-              onChange={(e) =>
-                setInterests(
-                  e.target.value
-                    .split(",")
-                    .map((i) => i.trim())
-                    .filter(Boolean),
-                )
-              }
+            <MultiValueInput
+              values={interests}
+              draft={interestsDraft}
+              onDraftChange={setInterestsDraft}
+              onValuesChange={setInterests}
+              placeholder={t("interestsPlaceholder")}
             />
           </div>
 
           <div className="space-y-2">
             <Label>{t("blockedTopics")}</Label>
-
-            <Input
-              placeholder="cats,cars,space"
-              value={blockedTopics.join(", ")}
-              onChange={(e) =>
-                setBlockedTopics(
-                  e.target.value
-                    .split(",")
-                    .map((i) => i.trim())
-                    .filter(Boolean),
-                )
-              }
+            <MultiValueInput
+              values={blockedTopics}
+              draft={blockedTopicsDraft}
+              onDraftChange={setBlockedTopicsDraft}
+              onValuesChange={setBlockedTopics}
+              placeholder={t("blockedTopicsPlaceholder")}
             />
           </div>
           {submitError && <p className="text-red-500">{submitError}</p>}
@@ -543,6 +556,113 @@ const AddChild = () => {
           <Button onClick={handleSuccessClose}>{t("ok")}</Button>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+};
+
+interface MultiValueInputProps {
+  values: string[];
+  draft: string;
+  onDraftChange: (value: string) => void;
+  onValuesChange: (values: string[]) => void;
+  placeholder: string;
+}
+
+const MultiValueInput = ({
+  values,
+  draft,
+  onDraftChange,
+  onValuesChange,
+  placeholder,
+}: MultiValueInputProps) => {
+  const addItems = (rawValue: string) => {
+    const parsed = parseMultiValueInput(rawValue);
+
+    if (parsed.length === 0) {
+      return false;
+    }
+
+    const seen = new Set(values.map((item) => item.toLowerCase()));
+    const nextValues = [...values];
+
+    for (const item of parsed) {
+      const key = item.toLowerCase();
+      if (!seen.has(key)) {
+        nextValues.push(item);
+        seen.add(key);
+      }
+    }
+
+    onValuesChange(nextValues);
+    return true;
+  };
+
+  const commitDraft = () => {
+    if (addItems(draft)) {
+      onDraftChange("");
+    } else {
+      onDraftChange(draft.trim());
+    }
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" || event.key === "," || event.key === "Tab") {
+      if (draft.trim()) {
+        event.preventDefault();
+        commitDraft();
+      }
+      return;
+    }
+
+    if (event.key === "Backspace" && !draft && values.length > 0) {
+      event.preventDefault();
+      onValuesChange(values.slice(0, -1));
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-input bg-background px-3 py-3">
+      <div className="flex flex-wrap gap-2">
+        {values.map((value) => (
+          <span
+            key={value}
+            className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm text-primary"
+          >
+            {value}
+            <button
+              type="button"
+              onClick={() =>
+                onValuesChange(values.filter((item) => item !== value))
+              }
+              className="text-primary/70 hover:text-primary"
+              aria-label={`Remove ${value}`}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+
+        <input
+          value={draft}
+          onChange={(e) => {
+            const nextValue = e.target.value;
+            if (/[,\n]/.test(nextValue)) {
+              addItems(nextValue);
+              onDraftChange("");
+              return;
+            }
+
+            onDraftChange(nextValue);
+          }}
+          onKeyDown={handleKeyDown}
+          onBlur={commitDraft}
+          placeholder={values.length === 0 ? placeholder : "Add another item"}
+          className="min-w-[180px] flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Type an item, then press Enter, Tab, or comma to add it.
+      </p>
     </div>
   );
 };

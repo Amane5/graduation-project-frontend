@@ -256,7 +256,7 @@
   "blockedTopics": "Blocked Topics",
 
   "interestsPlaceholder": "cats,cars,space",
-  "blockedTopicsPlaceholder": "cats,cars,space",
+  "blockedTopicsPlaceholder": "violent content, scary content, etc.",
 
   "saving": "Saving...",
   "birthDateRequired": "Birth date is required",

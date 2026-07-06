@@ -20,6 +20,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import DeleteChildModal from "@/components/dashboard/DeleteChildModal";
+import { AlertTriangleIcon } from "lucide-react"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
 
 export default function MyFiles() {
   const { t } = useTranslation();
@@ -43,7 +51,9 @@ export default function MyFiles() {
 
   const [editChildren, setEditChildren] = useState<string[]>([]);
 
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
+  const [showAlert, setShowAlert] = useState(false);
   useEffect(() => {
       if (!user?.id) return;
   
@@ -90,7 +100,7 @@ export default function MyFiles() {
   const handleUpload = async() => {
     if(!selectedFile) return
     if (selectedChildren.length === 0) {
-      alert("Please select at least one child");
+      setShowAlert(true)
       return;
     }
     try{
@@ -101,16 +111,22 @@ export default function MyFiles() {
       setSelectedChildren([])
     }catch(err){
       console.log(err)
+      setShowAlert(false);
     }
 
   };
 
   const handleDelete = async(id: number) => {
     try{
+      setDeletingId(id);
       await deleteFile(id)
       setFiles(files.filter((f) => f.id !== id));
+      toast.success("File deleted successfully");
     }catch(err){
       console.log(err)
+      toast.error("Failed to delete File");
+    }finally{
+      setDeletingId(null);
     }
   };
 
@@ -147,9 +163,18 @@ export default function MyFiles() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-5xl mx-auto">
+
         {/* TITLE */}
         <h1 className="text-4xl font-bold mb-8">{t("myFiles")}</h1>
-
+        {showAlert && (
+        <Alert className="max-w-md border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-50">
+          <AlertTriangleIcon />
+          <AlertTitle>Warning.</AlertTitle>
+          <AlertDescription>
+            Please select at least one child
+          </AlertDescription>
+        </Alert>
+      )}
         {/* UPLOAD CARD */}
         <div className="bg-card rounded-2xl shadow-md p-6 mb-10 border">
           <h2 className="text-2xl font-bold mb-6">{t("uploadNewFile")}</h2>
@@ -290,7 +315,8 @@ export default function MyFiles() {
                   </button>
 
                   <button
-                    onClick={() => handleDelete(file.id)}
+                    disabled={deletingId === file.id}
+                    onClick={() => setDeletingId(file.id)}
                     className="text-red-500 hover:text-red-700"
                   >
                     <Trash2 className="w-5 h-5" />
@@ -373,6 +399,13 @@ export default function MyFiles() {
           </DialogContent>
         </Dialog>
       </div>
+      <DeleteChildModal
+        open={!!deletingId}
+        onOpenChange={(o) => !o && setDeletingId(null)}
+        title="Delete File"
+        description="Are you sure you want to delete this file?"
+        onConfirm={() => deletingId && handleDelete(deletingId)}
+      />
     </div>
   );
 }

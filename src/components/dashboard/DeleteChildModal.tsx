@@ -6,20 +6,22 @@ import { Child } from "@/lib/children";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  child: Child | null;
+  // child: Child | null;
+  title: string;
+  description: string;
   onConfirm: () => void;
 }
 
-const DeleteChildModal = ({ open, onOpenChange, child, onConfirm }: Props) => (
+const DeleteChildModal = ({ open, onOpenChange, title, description, onConfirm }: Props) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-sm rounded-3xl border-border/50 shadow-card">
       <DialogHeader className="items-center text-center">
         <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mb-2">
           <Trash2 className="w-7 h-7 text-destructive" />
         </div>
-        <DialogTitle className="text-xl">Remove {child?.name}?</DialogTitle>
+        <DialogTitle className="text-xl">{title}</DialogTitle>
         <DialogDescription>
-          Are you sure you want to remove this child? This cannot be undone.
+          {description}
         </DialogDescription>
       </DialogHeader>
       <DialogFooter className="flex-row gap-2 sm:gap-2 mt-2">

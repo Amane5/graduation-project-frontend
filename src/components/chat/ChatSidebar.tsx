@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { BookOpen } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ChatSidebarProps {
   conversations: Conversation[];
@@ -28,6 +29,7 @@ const ChatSidebar = ({
   onClose,
 }: ChatSidebarProps) => {
   const navigate = useNavigate()
+  const { userType } = useAuth();
 
   return (
     <>
@@ -77,31 +79,35 @@ const ChatSidebar = ({
             New Chat
           </Button>
 
-          <Button
-            variant="hero"
-            size="sm"
-            className="w-full rounded-2xl"
-            onClick={() => {
-              navigate("/my-stories");
-              onClose();
-            }}
-          >
-            <BookOpen className="w-4 h-4" />
-            My Stories
-          </Button>
+          {userType === "child" ? (
+            <>
+              <Button
+                variant="hero"
+                size="sm"
+                className="w-full rounded-2xl"
+                onClick={() => {
+                  navigate("/my-stories");
+                  onClose();
+                }}
+              >
+                <BookOpen className="w-4 h-4" />
+                My Stories
+              </Button>
 
-          <Button
-            variant="hero"
-            size="sm"
-            className="w-full rounded-2xl"
-            onClick={() => {
-              navigate("/my-challenges");
-              onClose();
-            }}
-          >
-            <BookOpen className="w-4 h-4" />
-            My Challenges
-          </Button>
+              <Button
+                variant="hero"
+                size="sm"
+                className="w-full rounded-2xl"
+                onClick={() => {
+                  navigate("/my-challenges");
+                  onClose();
+                }}
+              >
+                <BookOpen className="w-4 h-4" />
+                My Challenges
+              </Button>
+            </>
+          ) : null}
         </div>
 
         {/* List */}

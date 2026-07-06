@@ -320,7 +320,7 @@ export default function StoryForm() {
   }
   return (
     <div className="min-h-screen p-6 bg-background">
-      <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-md p-6">
+      <div className="max-w-4xl mx-auto rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-md">
         <h1 className="text-3xl font-bold mb-6">{t("storyGeneratorTitle")}</h1>
         <div
           className={`space-y-4 ${
@@ -368,7 +368,7 @@ export default function StoryForm() {
               value={form.behavior}
               onChange={handleChange}
               placeholder={t("behaviorPlaceholder")}
-              className="w-full min-h-[120px] border rounded-xl p-3"
+               className="w-full min-h-[120px] rounded-xl border border-input bg-background p-3 text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
@@ -383,7 +383,7 @@ export default function StoryForm() {
             name="length"
             value={form.length}
             onChange={handleChange}
-            className="w-full border rounded-xl p-3"
+            className="w-full rounded-xl border border-input bg-background p-3 text-foreground"
             >
               <option value="">{t("selectLength")}</option>
 
@@ -404,7 +404,7 @@ export default function StoryForm() {
               name="type"
               value={form.type}
               onChange={handleChange}
-              className="w-full border rounded-xl p-3"
+              className="w-full rounded-xl border border-input bg-background p-3 text-foreground"
             >
               <option value="">{t("selectType")}</option>
 
@@ -419,7 +419,7 @@ export default function StoryForm() {
           </div>
 
           {/* CHECKBOXES */}
-          <div className="flex gap-6">
+          <div className="flex gap-6 text-foreground">
             <label className="flex items-center gap-2">
               <input
                 disabled={loading}
@@ -460,7 +460,7 @@ export default function StoryForm() {
             {loading ? t("generating...") : generatedStory ? "Story Already Generated" : t("generateStory")}
           </button>
           {loading && (
-            <div className="mt-4 text-purple-600 font-medium">
+            <div className="mt-4 font-medium text-primary">
               {generationStep}
             </div>
           )}
@@ -468,14 +468,14 @@ export default function StoryForm() {
       </div>
         {/* GENERATED STORY */}
         {generatedStory && (
-          <div className="mt-10 border rounded-2xl p-6 bg-gray-50">
+          <div className="mt-10 rounded-2xl border border-border bg-muted/30 p-6">
             {/* TITLE */}
             <h2 className="text-3xl font-bold mb-4">
               {generatedStory.story.title}
             </h2>
 
             {/* SUMMARY */}
-            <p className="mb-6 text-gray-700">{generatedStory.story.content}</p>
+            <p className="mb-6 text-muted-foreground">{generatedStory.story.content}</p>
 
             {/* AUDIO */}
             {generatedStory.story.audioUrl && (
@@ -515,8 +515,8 @@ export default function StoryForm() {
                       scenes: updatedScenes,
                     });
                   }}
-                  className={`w-full min-h-[120px] border rounded-xl p-3 ${
-                    isEditing ? "bg-white" : "bg-background"
+                  className={`w-full min-h-[120px] rounded-xl border border-input p-3 text-foreground ${
+                    isEditing ? "bg-background" : "bg-muted/40"
                   }`}
                   />
 
@@ -600,7 +600,7 @@ export default function StoryForm() {
         )}
 
         {questions.length > 0 && (
-        <div className="mt-10 border rounded-2xl p-6">
+        <div className="mt-10 rounded-2xl border border-border bg-card p-6">
           <h2 className="text-2xl font-bold mb-6">
             Story Questions
           </h2>
@@ -608,7 +608,7 @@ export default function StoryForm() {
           {questions.map((question) => (
             <div
               key={question.id}
-              className="border rounded-xl p-4 mb-4"
+              className="mb-4 rounded-xl border border-border bg-muted/20 p-4"
             >
               {editingQuestionId === question.id ? (
                 <>
@@ -617,7 +617,7 @@ export default function StoryForm() {
                     onChange={(e) =>
                       setEditedQuestion(e.target.value)
                     }
-                    className="w-full border rounded-lg p-2"
+                    className="w-full rounded-lg border border-input bg-background p-2 text-foreground"
                   />
 
                   <div className="flex gap-2 mt-2">
@@ -680,7 +680,7 @@ export default function StoryForm() {
           onChange={(e) =>
             setNewQuestion(e.target.value)
           }
-          className="w-full border rounded-lg p-2"
+          className="w-full rounded-lg border border-input bg-background p-2 text-foreground"
         />
 
         <div className="flex gap-2 mt-2">
@@ -719,14 +719,14 @@ export default function StoryForm() {
         )}
       </div>
       {showAiEditor && (
-        <div className="fixed top-0 right-0 w-[400px] h-screen bg-white shadow-2xl border-l z-50 flex flex-col">
+        <div className="fixed top-0 right-0 z-50 flex h-screen w-[400px] flex-col border-l border-border bg-card text-card-foreground shadow-2xl">
           {/* HEADER */}
-          <div className="p-4 border-b flex justify-between items-center">
+          <div className="flex items-center justify-between border-b border-border p-4">
             <h2 className="text-xl font-bold">{t("aiStoryEditor")}</h2>
 
             <button
               onClick={() => setShowAiEditor(false)}
-              className="text-gray-500"
+              className="text-muted-foreground"
             >
               ✕
             </button>
@@ -740,7 +740,7 @@ export default function StoryForm() {
                 className={`p-3 rounded-xl max-w-[85%] ${
                   msg.role === "user"
                     ? "bg-purple-600 text-white ml-auto"
-                    : "bg-gray-200 text-black"
+                    : "bg-muted text-foreground"
                 }`}
               >
                 {msg.text}
@@ -748,19 +748,19 @@ export default function StoryForm() {
             ))}
 
             {aiLoading && (
-              <div className="bg-gray-200 p-3 rounded-xl w-fit">
+              <div className="w-fit rounded-xl bg-muted p-3 text-foreground">
                 {t("updatingStory")}
               </div>
             )}
           </div>
 
           {/* INPUT */}
-          <div className="p-4 border-t flex gap-2">
+          <div className="flex gap-2 border-t border-border p-4">
             <input
               value={aiMessage}
               onChange={(e) => setAiMessage(e.target.value)}
               placeholder={t("askAiToModifyStory")}
-              className="flex-1 border rounded-xl px-3 py-2"
+              className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground"
             />
 
             <button

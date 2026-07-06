@@ -584,12 +584,15 @@ console.log("FIRST SCENE:", selectedStory.scenes?.[0]);
   // ---------------- GRID VIEW ----------------
   if (!selectedStory) {
     return (
-      <div className="p-6 grid md:grid-cols-2 gap-4">
+      <div className="grid gap-4 p-6 md:grid-cols-2">
         {stories.map((story) => (
-          <div key={story.id} className="bg-white p-4 rounded-xl shadow">
-            <h2 className="font-bold text-xl">{story.title}</h2>
+          <div
+            key={story.id}
+            className="rounded-xl border border-border bg-card p-4 text-card-foreground shadow"
+          >
+            <h2 className="text-xl font-bold">{story.title}</h2>
 
-            <p className="text-gray-600 mb-3">
+            <p className="mb-3 text-muted-foreground">
               {story.content.slice(0, 120)}...
             </p>
 
@@ -663,7 +666,7 @@ const audio = new Audio(
   }
 };
 return (
-  <div className="fixed inset-0 bg-gradient-to-br from-sky-50 via-indigo-50 to-purple-100 overflow-hidden">
+  <div className="fixed inset-0 overflow-hidden bg-gradient-to-br from-sky-50 via-indigo-50 to-purple-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950">
     {/* background */}
     <div className="absolute inset-0">
       <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-blue-300/20 blur-3xl" />
@@ -675,7 +678,7 @@ return (
     <div className="relative z-50 h-20 flex items-center justify-between px-6">
       <button
         onClick={() => setSelectedStory(null)}
-        className="rounded-xl bg-white px-4 py-2 shadow"
+        className="rounded-xl border border-border bg-card px-4 py-2 text-card-foreground shadow"
       >
         ← Back
       </button>
@@ -702,7 +705,7 @@ return (
     </div>
 
     {/* Scene */}
-    <div className="relative z-10 h-[calc(100vh-80px)] flex items-center justify-center p-6">
+    <div className="relative z-10 flex h-[calc(100vh-80px)] items-center justify-center p-6">
 
       <div
   key={currentSceneIndex}
@@ -711,7 +714,7 @@ return (
     max-w-6xl
     h-full
     rounded-3xl
-    bg-white/80
+    bg-white/80 dark:bg-slate-900/80
     backdrop-blur
     shadow-2xl
     overflow-y-auto
@@ -721,7 +724,7 @@ return (
 >
         {/* progress */}
         <div className="px-8 pt-6">
-          <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
+          <div className="h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
             <div
               className="h-full bg-blue-500 transition-all duration-500"
               style={{
@@ -734,7 +737,7 @@ return (
             />
           </div>
 
-          <p className="text-center mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-center text-sm text-slate-500 dark:text-slate-400">
             Scene {currentSceneIndex + 1} of {story.scenes.length}
           </p>
         </div>
@@ -747,7 +750,7 @@ return (
     </div>
 
     <div className="fixed inset-0 flex items-center justify-center z-[110]">
-      <div className="bg-white p-8 rounded-3xl shadow-xl text-center">
+      <div className="rounded-3xl border border-border bg-card p-8 text-center text-card-foreground shadow-xl">
         <div className="text-6xl mb-4">🏆</div>
         <h2 className="text-3xl font-bold">Great job, champion!</h2>
         <p className="mt-3">You have successfully completed the story questions.</p>
@@ -782,7 +785,7 @@ return (
               text-xl
               leading-9
               text-center
-              text-slate-700
+              text-slate-700 dark:text-slate-200
               max-w-4xl
               mx-auto
             "
@@ -808,7 +811,7 @@ return (
               h-14
               w-14
               rounded-full
-              bg-white
+              bg-card text-card-foreground border border-border
               shadow-xl
               text-2xl
               disabled:opacity-40
@@ -848,8 +851,8 @@ return (
     {/* Questions */}
     {showQuestions  &&(
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl p-6 max-h-[85vh] overflow-y-auto">
-          <h2 className="text-3xl font-bold mb-6">
+        <div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-border bg-card p-6 text-card-foreground shadow-2xl">
+          <h2 className="mb-6 text-3xl font-bold">
             Questions
           </h2>
 
@@ -864,7 +867,7 @@ return (
                   onClick={() =>
                     handlePlayQuestionAudio(q.id, q.question)
                   }
-                  className="text-blue-600 text-xl"
+                className="text-xl text-blue-600 dark:text-blue-400"
                 >
                   {playingAudioId === q.id
                     ? "🔊..."
@@ -877,7 +880,7 @@ return (
                       ? stopRecording(q.id)
                       : startRecording(q.id)
                   }
-                  className="text-red-600 text-xl"
+                  className="text-xl text-red-600 dark:text-red-400"
                 >
                   {recordingQuestionId === q.id
                     ? "⏹️"
@@ -886,7 +889,7 @@ return (
               </div>
 
               <textarea
-                className="w-full border rounded-xl p-3"
+                className="w-full rounded-xl border border-input bg-background p-3 text-foreground"
                 value={answers[q.id] || ""}
                 onChange={(e) =>
                   setAnswers((prev) => ({
