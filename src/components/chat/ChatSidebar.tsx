@@ -1,11 +1,12 @@
-import { BookOpen, MessageCircle, Plus, Sparkles, Trash2, Trophy } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { BookOpen, MessageCircle, Plus, Sparkles, Trash2, Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Conversation } from "@/lib/chat";
-import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
+
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import type { Conversation } from "@/lib/chat";
+import { cn } from "@/lib/utils";
 
 interface ChatSidebarProps {
   conversations: Conversation[];
@@ -36,19 +37,19 @@ const ChatSidebar = ({
     <>
       {open ? (
         <div
-          className="fixed inset-0 z-30 animate-fade-in bg-foreground/30 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-30 bg-foreground/30 backdrop-blur-sm lg:hidden"
           onClick={onClose}
         />
       ) : null}
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 flex h-screen w-72 flex-col border-r border-border/60 bg-card transition-transform duration-300 ease-out lg:sticky lg:z-auto",
+          "fixed left-0 top-0 z-40 flex h-screen w-72 flex-col border-r border-border/60 bg-card/95 backdrop-blur-md transition-transform duration-300 ease-out lg:sticky lg:z-auto",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
         <div className="space-y-3 border-b border-border/50 p-4">
-          <div className="mb-4 flex items-center gap-2">
+          {/* <div className="mb-4 flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-primary shadow-button">
               <Sparkles className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
             </div>
@@ -56,7 +57,7 @@ const ChatSidebar = ({
               <h2 className="text-base font-bold leading-tight">{t("sparkyName")}</h2>
               <p className="text-[11px] text-muted-foreground">{t("chatSidebarTagline")}</p>
             </div>
-          </div>
+          </div> */}
 
           <Button
             variant="hero"
@@ -71,35 +72,6 @@ const ChatSidebar = ({
             {t("chatNewConversation")}
           </Button>
 
-          {userType === "child" ? (
-            <>
-              <Button
-                variant="hero"
-                size="sm"
-                className="w-full rounded-2xl"
-                onClick={() => {
-                  navigate("/my-stories");
-                  onClose();
-                }}
-              >
-                <BookOpen className="h-4 w-4" />
-                {t("navMyStories")}
-              </Button>
-
-              <Button
-                variant="hero"
-                size="sm"
-                className="w-full rounded-2xl"
-                onClick={() => {
-                  navigate("/my-challenges");
-                  onClose();
-                }}
-              >
-                <Trophy className="h-4 w-4" />
-                {t("navMyChallenges")}
-              </Button>
-            </>
-          ) : null}
         </div>
 
         <div className="flex-1 space-y-1 overflow-y-auto p-2">
@@ -110,50 +82,79 @@ const ChatSidebar = ({
               ))}
             </div>
           ) : conversations.length === 0 ? (
-            <div className="p-6 text-center text-xs text-muted-foreground">
-              {t("chatNoConversations")}
+            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 p-6 text-center">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Sparkles className="h-5 w-5" strokeWidth={2.2} />
+              </div>
+              <p className="mt-4 text-sm font-semibold text-foreground">
+                {t("chatNoConversations")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {t("chatSidebarEmptyHint")}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4 rounded-xl"
+                onClick={() => {
+                  onNew();
+                  onClose();
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                {t("chatNewConversation")}
+              </Button>
             </div>
           ) : (
             conversations.map((conversation) => {
               const active = conversation.id === activeId;
+              const hasValidDate =
+                conversation.lastActivity &&
+                !Number.isNaN(new Date(conversation.lastActivity).getTime());
 
               return (
-                <button
+                <div
                   key={conversation.id}
-                  onClick={() => {
-                    onSelect(conversation.id);
-                    onClose();
-                  }}
                   className={cn(
-                    "group flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all",
+                    "group flex items-start gap-2 rounded-2xl border px-2 py-2 transition-all",
                     active
-                      ? "border-primary/20 bg-primary/10"
+                      ? "border-primary/20 bg-primary/10 shadow-soft"
                       : "border-transparent hover:bg-muted",
                   )}
                 >
-                  <MessageCircle
-                    className={cn(
-                      "mt-0.5 h-4 w-4 shrink-0",
-                      active ? "text-primary" : "text-muted-foreground",
-                    )}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelect(conversation.id);
+                      onClose();
+                    }}
+                    className="flex min-w-0 flex-1 items-start gap-2.5 rounded-xl px-1 py-0.5 text-left"
+                  >
+                    <MessageCircle
                       className={cn(
-                        "truncate text-sm font-semibold",
-                        active ? "text-primary" : "text-foreground",
+                        "mt-0.5 h-4 w-4 shrink-0",
+                        active ? "text-primary" : "text-muted-foreground",
                       )}
-                    >
-                      {conversation.title}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {conversation.lastActivity &&
-                      !isNaN(new Date(conversation.lastActivity).getTime())
-                        ? format(new Date(conversation.lastActivity), "PPP · p")
-                        : t("chatNoActivity")}
-                    </p>
-                  </div>
-                  <div
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={cn(
+                          "truncate text-sm font-semibold",
+                          active ? "text-primary" : "text-foreground",
+                        )}
+                      >
+                        {conversation.title}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {hasValidDate
+                          ? format(new Date(conversation.lastActivity), "PPP p")
+                          : t("chatNoActivity")}
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={(event) => {
                       event.stopPropagation();
                       onDelete(conversation.id);
@@ -162,8 +163,8 @@ const ChatSidebar = ({
                     aria-label={t("delete")}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                  </div>
-                </button>
+                  </button>
+                </div>
               );
             })
           )}

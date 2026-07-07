@@ -20,17 +20,17 @@ export type DbMessage = {
 };
 
 export type AskMessage = {
-  id:number
-  question:string
-  answer:string
-  imageDescription?:string
-  voiceText?:string
-  createdAt:string
+  id: number;
+  question: string;
+  answer: string;
+  imageDescription?: string;
+  voiceText?: string;
+  createdAt: string;
   audioUrl?: string;
   imageUrl?: string;
-  responseMode?: string
-  journeyData?: unknown
-}
+  responseMode?: string;
+  journeyData?: unknown;
+};
 
 export type Conversation = {
   id: number;
@@ -38,31 +38,33 @@ export type Conversation = {
   lastActivity: string;
 };
 
-export const listConversations = async (childId : number) => {
+export const listConversations = async (childId: number) => {
   const res = await fetchWithSession(`${import.meta.env.VITE_API_URL}/conversation/${childId}`);
-  const data = await res.json()
+  const data = await res.json();
   return data.data.data;
 };
 
-export const createConversation = async (question:string) => {
+export const createConversation = async (question: string) => {
   const res = await fetchWithSession(`${import.meta.env.VITE_API_URL}/conversation`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify( {question} ),
+    body: JSON.stringify({ question }),
   });
   const data = await res.json();
   return data.data.data;
 };
 
 export const deleteConversation = async (id: number) => {
-  const r = await fetchWithSession(`${import.meta.env.VITE_API_URL}/conversation/${id}`, {
+  const response = await fetchWithSession(`${import.meta.env.VITE_API_URL}/conversation/${id}`, {
     method: "DELETE",
   });
-   if (!r.ok) {
-    throw new Error(`Delete failed: ${r.status}`);
+
+  if (!response.ok) {
+    throw new Error(`Delete failed: ${response.status}`);
   }
-  console.log("delteeeee", r)
-  return r.json();
+
+  console.log("delteeeee", response);
+  return response.json();
 };
 
 export const listMessages = async (conversationId: number) => {
@@ -70,7 +72,7 @@ export const listMessages = async (conversationId: number) => {
     `${import.meta.env.VITE_API_URL}/ask/${conversationId}/messages`,
   );
   const data = await res.json();
-  return data.data.data
+  return data.data.data;
 };
 
 export async function streamChat({
@@ -90,9 +92,9 @@ export async function streamChat({
   mode?: "normal" | "journey";
   onDelta: (chunk: string) => void;
   onDone: (data?: {
-  audioUrl?: string;
-  imageUrl?: string;
-}) => void;
+    audioUrl?: string;
+    imageUrl?: string;
+  }) => void;
   onAudio?: (audioUrl: string) => void;
   onImage?: (imageUrl: string) => void;
   onError: (msg: string) => void;
@@ -100,15 +102,11 @@ export async function streamChat({
   const url = `${import.meta.env.VITE_API_URL}/ai/stream`;
 
   const formData = new FormData();
-
   formData.append("question", question);
-
   formData.append("mode", mode);
+
   if (conversationId) {
-    formData.append(
-      "conversationId",
-      String(conversationId),
-    );
+    formData.append("conversationId", String(conversationId));
   }
 
   if (files && files.length > 0) {
@@ -125,13 +123,13 @@ export async function streamChat({
       body: formData,
     });
     console.log("STREAM RESPONSE", resp);
-  } catch (e) {
-    onError("Network hiccup ðŸ’«");
+  } catch {
+    onError("Network hiccup");
     return;
   }
 
   if (!resp.ok || !resp.body) {
-    onError("Stream failed ðŸ’«");
+    onError("Stream failed");
     return;
   }
 
@@ -151,57 +149,46 @@ export async function streamChat({
     });
 
     const lines = buffer.split("\n");
-
     buffer = lines.pop() || "";
 
-for (const line of lines) {
-  const trimmed = line.trim();
+    for (const line of lines) {
+      const trimmed = line.trim();
 
-  if (!trimmed) continue;
+      if (!trimmed) continue;
 
-  if (trimmed.startsWith("event: ")) {
-    currentEvent = trimmed.replace("event: ", "");
-  }
+      if (trimmed.startsWith("event: ")) {
+        currentEvent = trimmed.replace("event: ", "");
+      }
 
-  if (trimmed.startsWith("data: ")) {
-    const raw = trimmed.replace("data: ", "");
+      if (trimmed.startsWith("data: ")) {
+        const raw = trimmed.replace("data: ", "");
 
-    if (currentEvent === "text") {
-      try {
-        const chunk = JSON.parse(raw);
-
-        onDelta(chunk);
-      } catch {
-        onDelta(raw);
+        if (currentEvent === "text") {
+          try {
+            const chunk = JSON.parse(raw);
+            onDelta(chunk);
+          } catch {
+            onDelta(raw);
+          }
+        } else if (currentEvent === "audio") {
+          const data = JSON.parse(raw);
+          onAudio?.(data.audioUrl);
+        } else if (currentEvent === "image") {
+          const data = JSON.parse(raw);
+          onImage?.(data.imageUrl);
+        } else if (currentEvent === "done") {
+          onDone();
+          return;
+        }
       }
     }
-
-    else if (currentEvent === "audio") {
-      const data = JSON.parse(raw);
-
-      onAudio?.(data.audioUrl);
-    }
-
-    else if (currentEvent === "image") {
-      const data = JSON.parse(raw);
-
-      onImage?.(data.imageUrl);
-    }
-
-    else if (currentEvent === "done") {
-      onDone();
-
-      return;
-    }
-  }
-}
   }
 
   onDone();
 }
 
-export const histoyPage = async (childId:number) =>{
-  const r = await fetchWithSession(`${import.meta.env.VITE_API_URL}/history/${childId}`);
-  const data = await r.json();
-  return data.data
-}
+export const histoyPage = async (childId: number) => {
+  const response = await fetchWithSession(`${import.meta.env.VITE_API_URL}/history/${childId}`);
+  const data = await response.json();
+  return data.data;
+};

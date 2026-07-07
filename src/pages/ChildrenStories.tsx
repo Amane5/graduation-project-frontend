@@ -1,7 +1,7 @@
-import { approveStory, deleteStory, getChildrenStories, updateStory, updateStoryWithAi } from "@/lib/story";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Edit2, Search, Sparkles, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,15 +12,35 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { addQuestions, approveQuestions, deleteQuestion, generateQuestions, regenerateQuestions, updateQuestion } from "@/lib/questions";
-import { Edit2, Trash2 } from "lucide-react";
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  addQuestions,
+  approveQuestions,
+  deleteQuestion,
+  generateQuestions,
+  regenerateQuestions,
+  updateQuestion,
+} from "@/lib/questions";
+import {
+  approveStory,
+  deleteStory,
+  getChildrenStories,
+  updateStory,
+  updateStoryWithAi,
+} from "@/lib/story";
 
 type Scene = {
   id: number;
   title: string;
   content: string;
   imageUrl?: string | null;
+};
+
+type Question = {
+  id: number;
+  storyId: number;
+  question: string;
 };
 
 type Story = {
@@ -31,985 +51,668 @@ type Story = {
   status: string;
   audioUrl?: string | null;
   scenes: Scene[];
-  questions:Question[];
+  questions: Question[];
   isApproved: boolean;
   questionsApproved: boolean;
 };
 
-type Question = {
-  id:number,
-  storyId:number,
-  question:string
-}
+type StoryApiRecord = {
+  id: number;
+  title: string;
+  content: string;
+  status: string;
+  audioUrl?: string | null;
+  scenes?: Scene[];
+  questions?: Question[];
+  isApproved: boolean;
+  questionsApproved: boolean;
+  child?: {
+    firstName?: string;
+  };
+};
+
+type StoryEditorMessage = {
+  role: "user" | "assistant";
+  text: string;
+};
+
+const resolveAssetUrl = (url?: string | null) => {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  return `${import.meta.env.VITE_API_URL}${url}`;
+};
+
 export default function ChildrenStories() {
   const { t } = useTranslation();
+
   const [stories, setStories] = useState<Story[]>([]);
-  const [filteredStories, setFilteredStories] = useState<Story[]>([]);
   const [search, setSearch] = useState("");
   const [editingStoryId, setEditingStoryId] = useState<number | null>(null);
   const [showAiEditor, setShowAiEditor] = useState(false);
   const [aiMessage, setAiMessage] = useState("");
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatMessages, setChatMessages] = useState<StoryEditorMessage[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
-
-  const [editingQuestionId, setEditingQuestionId] =useState<number | null>(null);
-
+  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
   const [editedQuestion, setEditedQuestion] = useState("");
-
   const [showAddQuestionForStory, setShowAddQuestionForStory] = useState<number | null>(null);
-
   const [newQuestion, setNewQuestion] = useState("");
-
   const [questionLoading, setQuestionLoading] = useState(false);
-
-  const [loadingStoryId, setLoadingStoryId] =
-  useState<number | null>(null);
-  const navigate = useNavigate()
-
+  const [loadingStoryId, setLoadingStoryId] = useState<number | null>(null);
 
   useEffect(() => {
-      const fetchStories = async () => {
-        try{
-          const data = await getChildrenStories()
-          setStories(
-            data.data.map((s: any) => ({
-              id: s.id,
-              title: s.title,
-              content: s.content,
-              childName: s.child?.firstName || "Unknown",
-              status: s.status,
-              audioUrl: s.audioUrl,
-              scenes: s.scenes || [],
-              questions:s.questions || [],
-              isApproved: s.isApproved,
-              questionsApproved: s.questionsApproved,
-            }))
-          );     
-          }catch(err){
-          console.log(err)
-        }
+    const fetchStories = async () => {
+      try {
+        const response = await getChildrenStories();
+        setStories(
+          response.data.map((story: StoryApiRecord) => ({
+            id: story.id,
+            title: story.title,
+            content: story.content,
+            childName: story.child?.firstName || t("unknownChild"),
+            status: story.status,
+            audioUrl: story.audioUrl,
+            scenes: story.scenes || [],
+            questions: story.questions || [],
+            isApproved: story.isApproved,
+            questionsApproved: story.questionsApproved,
+          })),
+        );
+      } catch (error) {
+        console.log(error);
       }
-        fetchStories()
-  }, []);
+    };
 
-  useEffect(() => {
+    void fetchStories();
+  }, [t]);
 
-    const filtered = stories.filter((story) =>
-      (story.childName || "")
-      .toLowerCase()
-      .includes(search.toLowerCase())
+  const filteredStories = useMemo(
+    () =>
+      stories.filter((story) =>
+        (story.childName || "").toLowerCase().includes(search.toLowerCase()),
+      ),
+    [search, stories],
+  );
 
-    );
+  const updateStoryInState = (storyId: number, updater: (story: Story) => Story) => {
+    setStories((prev) => prev.map((story) => (story.id === storyId ? updater(story) : story)));
+  };
 
-    setFilteredStories(filtered);
-
-  }, [search, stories]);
-
-
- const handleSaveEdit = async (story: Story) => {
-  try {
-    const res = await updateStory(story.id, {
-      scenes: story.scenes.map((scene) => ({
-        id: scene.id,
-        title: scene.title,
-        content: scene.content,
-      })),
-    });
-
-    console.log("NEW AUDIO", res.data.story.audioUrl);
-    setStories((prev) =>
-      prev.map((s) =>
-        s.id === story.id
-          ? {
-              ...s,
-              ...res.data.story,
-              scenes: res.data.scenes,
-              status: "DRAFT",
-              isApproved: false,
-              questionsApproved: false,
-            }
-          : s
-      )
-    );
-
-    if (selectedStory?.id === story.id) {
-      setSelectedStory({
-        ...selectedStory,
-        ...res.data.story,
-        scenes: res.data.scenes,
-        status: "DRAFT",
+  const handleSaveEdit = async (story: Story) => {
+    try {
+      const response = await updateStory(story.id, {
+        scenes: story.scenes.map((scene) => ({
+          id: scene.id,
+          title: scene.title,
+          content: scene.content,
+        })),
       });
-    }
 
-    setEditingStoryId(null);
-  } catch (err) {
-    console.log(err);
-  }
-};
+      updateStoryInState(story.id, (current) => ({
+        ...current,
+        ...response.data.story,
+        scenes: response.data.scenes,
+        status: "DRAFT",
+        isApproved: false,
+        questionsApproved: false,
+      }));
 
-  const handleApprove = async (storyId:number) => {
-    try{
-      await approveStory(storyId)
-      setStories((prev) => prev.map((story) => story.id === storyId ? { ...story, isApproved: true, } : story ) );
-    }catch(err){
-      console.log(err)
+      if (selectedStory?.id === story.id) {
+        setSelectedStory((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...response.data.story,
+                scenes: response.data.scenes,
+                status: "DRAFT",
+                isApproved: false,
+                questionsApproved: false,
+              }
+            : null,
+        );
+      }
+
+      setEditingStoryId(null);
+    } catch (error) {
+      console.log(error);
     }
-  }
+  };
+
+  const handleApprove = async (storyId: number) => {
+    try {
+      await approveStory(storyId);
+      updateStoryInState(storyId, (story) => ({ ...story, isApproved: true }));
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   const handleEditWithAi = async () => {
-  
     if (!aiMessage.trim() || !selectedStory) return;
+
     const message = aiMessage;
-    setAiMessage("")
+    setAiMessage("");
+
     try {
-  
       setAiLoading(true);
-  
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          role: "user",
-          text: message,
-        },
-      ]);
-  console.log("SENDING:", {
-    editRequest: aiMessage,
-  });
-      const res = await updateStoryWithAi(
-          selectedStory.id,
-          {
-            editRequest: message,
-          },
-        );
-        console.log(res)
-  
-      // update story on screen
-      setStories((prev) =>
-        prev.map((story) => {
+      setChatMessages((prev) => [...prev, { role: "user", text: message }]);
 
-        if (story.id !== selectedStory.id)
-          return story;
+      const response = await updateStoryWithAi(selectedStory.id, {
+        editRequest: message,
+      });
 
-        return {
-          ...story,
-          title:
-            res.data.story?.title ||
-            story.title,
-
-          content:
-            res.data.story?.content ||
-            story.content,
-
-          scenes:
-            res.data.scenes ||
-            story.scenes,
-
-          audioUrl:
-            res.data.story?.audioUrl ||
-            story.audioUrl,
-
-          status:
-            res.data.story?.status ||
-            story.status,
-        };
-
-        })
-        );
+      updateStoryInState(selectedStory.id, (story) => ({
+        ...story,
+        title: response.data.story?.title || story.title,
+        content: response.data.story?.content || story.content,
+        scenes: response.data.scenes || story.scenes,
+        audioUrl: response.data.story?.audioUrl || story.audioUrl,
+        status: response.data.story?.status || story.status,
+      }));
 
       setSelectedStory((prev) =>
-          prev
+        prev
           ? {
-          ...prev,
-          title:
-          res.data.story?.title ||
-          prev.title,
-
-              content:
-                res.data.story?.content ||
-                prev.content,
-
-              scenes:
-                res.data.scenes ||
-                prev.scenes,
+              ...prev,
+              title: response.data.story?.title || prev.title,
+              content: response.data.story?.content || prev.content,
+              scenes: response.data.scenes || prev.scenes,
+              audioUrl: response.data.story?.audioUrl || prev.audioUrl,
+              status: response.data.story?.status || prev.status,
             }
-          : null
+          : null,
+      );
 
-          );
-
-      // add assistant message
       setChatMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          text:
-            res.data.summaryOfChanges ||
-            "Story updated successfully",
+          text: response.data.summaryOfChanges || t("storyEditorUpdated"),
         },
       ]);
-  
-      setAiMessage("");
-  
-    } catch (err) {
-  
-      console.log(err);
-  setAiMessage(message)
+    } catch (error) {
+      console.log(error);
+      setAiMessage(message);
     } finally {
-  
       setAiLoading(false);
-  
     }
   };
 
   const handleDelete = async (storyId: number) => {
-      try {
+    try {
       await deleteStory(storyId);
-
-      setStories((prev) =>
-        prev.filter((story) => story.id !== storyId)
-      );
-      } catch (err) {
-      console.log(err);
-
+      setStories((prev) => prev.filter((story) => story.id !== storyId));
+      if (selectedStory?.id === storyId) {
+        setSelectedStory(null);
       }
+    } catch (error) {
+      console.log(error);
+    }
   };
 
-  const handleGenerateQuestions = async (
-  storyId: number
-  ) => {
+  const handleGenerateQuestions = async (storyId: number) => {
     try {
       setQuestionLoading(true);
-      const res = await generateQuestions(storyId);
-
-      setStories((prev) =>
-        prev.map((story) =>
-          story.id === storyId
-            ? {
-                ...story,
-                questions: res.data,
-              }
-            : story
-        )
-      );
-    } catch (err) {
-      console.log(err);
-    }finally{
+      const response = await generateQuestions(storyId);
+      updateStoryInState(storyId, (story) => ({ ...story, questions: response.data }));
+    } catch (error) {
+      console.log(error);
+    } finally {
       setQuestionLoading(false);
     }
   };
-      
+
   const handleRegenerateQuestions = async (storyId: number) => {
     try {
       setLoadingStoryId(storyId);
-
-      const res = await regenerateQuestions(storyId);
-  
-      setStories((prev) =>
-        prev.map((story) =>
-          story.id === storyId
-            ? {
-                ...story,
-                questions: res.data,
-              }
-            : story
-        )
-      );
-    } catch (err) {
-      console.log(err);
-    }finally{
-        setLoadingStoryId(null);
-
+      const response = await regenerateQuestions(storyId);
+      updateStoryInState(storyId, (story) => ({ ...story, questions: response.data }));
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoadingStoryId(null);
     }
   };
 
   const handleApproveQuestions = async (storyId: number) => {
     try {
       await approveQuestions(storyId);
-
-      setStories((prev) =>
-        prev.map((story) =>
-          story.id === storyId
-            ? {
-                ...story,
-                status: "PUBLISHED",
-              }
-            : story
-        )
-      );
-    } catch (err) {
-      console.log(err);
+      updateStoryInState(storyId, (story) => ({ ...story, status: "PUBLISHED" }));
+    } catch (error) {
+      console.log(error);
     }
   };
 
-  const handleAddQuestion = async (
-  storyId: number
-  ) => {
+  const handleAddQuestion = async (storyId: number) => {
     try {
-      const res = await addQuestions(storyId, {
-          question: newQuestion,
-        });
-
-      setStories((prev) =>
-        prev.map((story) =>
-          story.id === storyId
-            ? {
-                ...story,
-                questions: [
-                  ...story.questions,
-                  res.data,
-                ],
-              }
-            : story
-        )
-      );
-
+      const response = await addQuestions(storyId, { question: newQuestion });
+      updateStoryInState(storyId, (story) => ({
+        ...story,
+        questions: [...story.questions, response.data],
+      }));
       setNewQuestion("");
       setShowAddQuestionForStory(null);
-    } catch (err) {
-      console.log(err);
+    } catch (error) {
+      console.log(error);
     }
   };
 
-  const handleDeleteQuestion = async (
-    storyId: number,
-    questionId: number
-  ) => {
+  const handleDeleteQuestion = async (storyId: number, questionId: number) => {
     try {
       await deleteQuestion(questionId);
-
-      setStories((prev) =>
-        prev.map((story) =>
-          story.id === storyId
-            ? {
-                ...story,
-                questions:
-                  story.questions.filter(
-                    (q) =>
-                      q.id !== questionId
-                  ),
-              }
-            : story
-        )
-      );
-    } catch (err) {
-      console.log(err);
+      updateStoryInState(storyId, (story) => ({
+        ...story,
+        questions: story.questions.filter((question) => question.id !== questionId),
+      }));
+    } catch (error) {
+      console.log(error);
     }
   };
 
-  const handleUpdateQuestion = async (
-    storyId: number,
-    questionId: number
-  ) => {
+  const handleUpdateQuestion = async (storyId: number, questionId: number) => {
     try {
-      const res =
-        await updateQuestion(
-          questionId,
-          {
-            question: editedQuestion,
-          }
-        );
-
-      setStories((prev) =>
-        prev.map((story) =>
-          story.id === storyId
-            ? {
-                ...story,
-                questions:
-                  story.questions.map(
-                    (q) =>
-                      q.id === questionId
-                        ? res.data
-                        : q
-                  ),
-              }
-            : story
-        )
-      );
+      const response = await updateQuestion(questionId, { question: editedQuestion });
+      updateStoryInState(storyId, (story) => ({
+        ...story,
+        questions: story.questions.map((question) =>
+          question.id === questionId ? response.data : question,
+        ),
+      }));
 
       setEditingQuestionId(null);
       setEditedQuestion("");
-    } catch (err) {
-      console.log(err);
+    } catch (error) {
+      console.log(error);
     }
   };
+
   return (
-
     <div className="min-h-screen bg-background p-6">
-
-      <div className="max-w-6xl mx-auto">
-
-        {/* TITLE */}
-        <h1 className="text-4xl font-bold mb-8">
-          {t("childrenStories")}
-        </h1>
-
-        {/* SEARCH */}
-        <div className="mb-8">
-
-          <input
-            type="text"
-            placeholder={t("searchByChildName")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full p-4 rounded-2xl border border-border bg-card"
-          />
-
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 rounded-[2rem] border border-border/50 bg-card/90 p-6 shadow-card backdrop-blur-sm">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            {t("childrenStoriesBadge")}
+          </div>
+          <h1 className="text-4xl font-bold">{t("childrenStories")}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            {t("childrenStoriesDescription")}
+          </p>
         </div>
 
-        {/* STORIES */}
-        {filteredStories.length === 0 ? (
-
-          <div className="bg-card rounded-2xl p-8 text-center shadow">
-            {t("noStoriesFound")}   
+        <div className="mb-8">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder={t("searchByChildName")}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full rounded-2xl border border-border bg-card py-4 pl-11 pr-4"
+            />
           </div>
+        </div>
 
+        {filteredStories.length === 0 ? (
+          <div className="rounded-2xl bg-card p-8 text-center shadow">
+            {t("noStoriesFound")}
+          </div>
         ) : (
-
-          <div className="grid md:grid-cols-2 gap-6">
-
+          <div className="grid gap-6 md:grid-cols-2">
             {filteredStories.map((story) => (
-
               <div
                 key={story.id}
-                className="bg-card rounded-2xl shadow-md overflow-hidden"
+                className="overflow-hidden rounded-[2rem] border border-border/50 bg-card shadow-md"
               >
                 <div className="p-5">
-
-                  <h2 className="text-2xl font-bold mb-2">
-                    {story.title}
-                  </h2>
-
-                  <p className="text-sm text-purple-500 mb-4">
-                   {t("child")}: {story.childName}
-                  </p>
-
-                  <p className="text-sm text-purple-500 mb-4">
-                    Status: {story.status}
-                  </p>
-                  <p className="text-muted-foreground whitespace-pre-line">
-                    {story.content}
-                  </p>
-
-                  {/* AUDIO */}
-                  {story.audioUrl && (
-                  // <audio controls className="w-full mb-4">
-                  //   <source
-                  //     src={`${import.meta.env.VITE_API_URL}${story.audioUrl}`}
-                  //     type="audio/mpeg"
-                  //   />
-                  // </audio>
-                  <audio
-                    key={story.audioUrl}
-                    controls
-                    className="w-full mb-4"
-                  >
-                    <source
-                      src={`${import.meta.env.VITE_API_URL}${story.audioUrl}`}
-                      type="audio/mpeg"
-                    />
-                  </audio>
-                )}
-
-                <div className="space-y-6">
-                  {story.scenes.map((scene, index) => (
-                    <div key={scene.id} className="border-t pt-4">
-
-                      <h3 className="text-lg font-semibold mb-1">
-                        {index + 1}. {scene.title}
-                      </h3>
-
-                      {scene.imageUrl && (
-                        <img
-                            src={`${import.meta.env.VITE_API_URL}${scene.imageUrl}`}
-                          className="w-full h-48 object-cover rounded-lg mb-2"
-                        />
-                      )}
-
-                      <textarea
-                        value={scene.content}
-                        readOnly={editingStoryId !== story.id}
-                        onChange={(e) => {
-
-                          const updatedStories = stories.map((s) => {
-
-                            if (s.id !== story.id) return s;
-
-                            return {
-                              ...s,
-                              scenes: s.scenes.map((sc) =>
-                                sc.id === scene.id
-                                  ? {
-                                      ...sc,
-                                      content: e.target.value,
-                                    }
-                                  : sc
-                              ),
-                            };
-                          });
-
-                          setStories(updatedStories);
-                        }}
-                        className={`w-full border rounded-xl p-3 ${
-                          editingStoryId === story.id
-                            ? "bg-white"
-                            : "bg-background"
-                        }`}
-                      />
-
-
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold">{story.title}</h2>
+                      <p className="mt-1 text-sm text-primary">
+                        {t("child")}: {story.childName}
+                      </p>
                     </div>
-                  ))}
 
-                  {story.questions.length > 0 && (
-                  <div className="mt-6 border-t pt-4">
-                    <h3 className="font-bold text-xl mb-4">
-                      Questions
-                    </h3>
-
-                  {story.questions.map((q) => (
-                    <div
-                      key={q.id}
-                      className="border rounded-xl p-3 mb-3"
-                    >
-                      {editingQuestionId === q.id ? (
-                        <>
-                          <input
-                            value={editedQuestion}
-                            onChange={(e) =>
-                              setEditedQuestion(
-                                e.target.value
-                              )
-                            }
-                            className="w-full border rounded p-2"
-                          />
-
-                          <div className="flex gap-2 mt-2">
-                            <button
-                              onClick={() =>
-                                handleUpdateQuestion(
-                                  story.id,
-                                  q.id
-                                )
-                              }
-                            >
-                              Save
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                setEditingQuestionId(
-                                  null
-                                )
-                              }
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <p>{q.question}</p>
-
-                          <div className="flex gap-2 mt-2">
-                            <button
-                              onClick={() => {
-                                setEditingQuestionId(
-                                  q.id
-                                );
-
-                                setEditedQuestion(
-                                  q.question
-                                );
-                              }}
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleDeleteQuestion(
-                                  story.id,
-                                  q.id
-                                )
-                              }
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                  )}
-
-                  {showAddQuestionForStory ===
-                  story.id && (
-                  <div className="mt-4">
-                    <input
-                      value={newQuestion}
-                      onChange={(e) =>
-                        setNewQuestion(
-                          e.target.value
-                        )
-                      }
-                      className="w-full border rounded-xl p-2"
-                    />
-
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        onClick={() =>
-                          handleAddQuestion(
-                            story.id
-                          )
-                        }
-                      >
-                        Save
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          setShowAddQuestionForStory(
-                            null
-                          )
-                        }
-                      >
-                        Cancel
-                      </button>
+                    <div className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                      {t("status")}: {story.status}
                     </div>
                   </div>
-                )}
-              </div>
 
-            <div className="flex flex-wrap gap-3 mt-6">
+                  <p className="whitespace-pre-line text-muted-foreground">{story.content}</p>
 
-            {editingStoryId === story.id &&  (
-              <div className="flex gap-4">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button className="bg-yellow-600 text-white px-4 py-2 rounded-xl">
-                    Save Edit
-                  </button>
-                </AlertDialogTrigger>
+                  {story.audioUrl ? (
+                    <audio key={story.audioUrl} controls className="mt-4 w-full">
+                      <source src={resolveAssetUrl(story.audioUrl)} type="audio/mpeg" />
+                    </audio>
+                  ) : null}
 
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Save Edit
-                    </AlertDialogTitle>
+                  <div className="mt-6 space-y-6">
+                    {story.scenes.map((scene, index) => (
+                      <div key={scene.id} className="border-t border-border/50 pt-4">
+                        <h3 className="mb-3 text-lg font-semibold">
+                          {t("storySceneLabel", { number: index + 1, title: scene.title })}
+                        </h3>
 
-                    <AlertDialogDescription>
-                      Are you sure you want to save edit?
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
+                        {scene.imageUrl ? (
+                          <img
+                            src={resolveAssetUrl(scene.imageUrl)}
+                            alt={scene.title}
+                            className="mb-4 h-56 w-full rounded-2xl object-cover"
+                          />
+                        ) : null}
 
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>
-                      Cancel
-                    </AlertDialogCancel>
+                        {editingStoryId === story.id ? (
+                          <textarea
+                            value={scene.content}
+                            onChange={(event) => {
+                              setStories((prev) =>
+                                prev.map((candidate) =>
+                                  candidate.id !== story.id
+                                    ? candidate
+                                    : {
+                                        ...candidate,
+                                        scenes: candidate.scenes.map((storyScene) =>
+                                          storyScene.id === scene.id
+                                            ? { ...storyScene, content: event.target.value }
+                                            : storyScene,
+                                        ),
+                                      },
+                                ),
+                              );
+                            }}
+                            className="min-h-[180px] w-full rounded-2xl border border-input bg-background p-4 text-foreground"
+                          />
+                        ) : (
+                          <div className="rounded-2xl bg-muted/20 p-4">
+                            <p className="whitespace-pre-line text-base leading-7 text-foreground">
+                              {scene.content}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
 
-                    <AlertDialogAction
-                      onClick={() => handleSaveEdit(story)}
+                    {story.questions.length > 0 ? (
+                      <div className="border-t border-border/50 pt-4">
+                        <h3 className="mb-4 text-xl font-bold">{t("storyQuestionsTitle")}</h3>
+
+                        {story.questions.map((question) => (
+                          <div
+                            key={question.id}
+                            className="mb-3 rounded-2xl border border-border/60 p-4"
+                          >
+                            {editingQuestionId === question.id ? (
+                              <>
+                                <input
+                                  value={editedQuestion}
+                                  onChange={(event) => setEditedQuestion(event.target.value)}
+                                  className="w-full rounded-xl border border-input bg-background p-3"
+                                />
+
+                                <div className="mt-3 flex gap-2">
+                                  <Button size="sm" onClick={() => handleUpdateQuestion(story.id, question.id)}>
+                                    {t("save")}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setEditingQuestionId(null)}
+                                  >
+                                    {t("cancel")}
+                                  </Button>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <p className="text-sm leading-6 text-foreground">
+                                  {question.question}
+                                </p>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingQuestionId(question.id);
+                                      setEditedQuestion(question.question);
+                                    }}
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    onClick={() => handleDeleteQuestion(story.id, question.id)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {showAddQuestionForStory === story.id ? (
+                      <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+                        <input
+                          value={newQuestion}
+                          onChange={(event) => setNewQuestion(event.target.value)}
+                          className="w-full rounded-xl border border-input bg-background p-3"
+                          placeholder={t("storyNewQuestionPlaceholder")}
+                        />
+
+                        <div className="mt-3 flex gap-2">
+                          <Button onClick={() => handleAddQuestion(story.id)}>{t("save")}</Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowAddQuestionForStory(null)}
+                          >
+                            {t("cancel")}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    {editingStoryId === story.id ? (
+                      <>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button className="bg-yellow-600 hover:bg-yellow-600/90">
+                              {t("saveEdit")}
+                            </Button>
+                          </AlertDialogTrigger>
+
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t("saveEdit")}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {t("childrenStoriesSaveEditConfirm")}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleSaveEdit(story)}>
+                                {t("save")}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+
+                        <Button variant="outline" onClick={() => setEditingStoryId(null)}>
+                          {t("cancel")}
+                        </Button>
+                      </>
+                    ) : null}
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button className="bg-red-600 hover:bg-red-600/90">
+                          {t("delete")}
+                        </Button>
+                      </AlertDialogTrigger>
+
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{t("childrenStoriesDeleteTitle")}</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {t("childrenStoriesDeleteDescription")}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(story.id)}>
+                            {t("delete")}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    <Button
+                      onClick={() => {
+                        setSelectedStory(story);
+                        setEditingStoryId(story.id);
+                      }}
                     >
-                      Save
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      {t("editStory")}
+                    </Button>
 
-                <button
-                  onClick={() => setEditingStoryId(null)}
-                  className="bg-gray-500 text-white px-5 py-2 rounded-xl"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-              {/* DELETE */}
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button className="bg-red-600 text-white px-4 py-2 rounded-xl">
-                    Delete
-                  </button>
-                </AlertDialogTrigger>
-
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Delete Story
-                    </AlertDialogTitle>
-
-                    <AlertDialogDescription>
-                      Are you sure you want to delete this story?
-                      This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>
-                      Cancel
-                    </AlertDialogCancel>
-
-                    <AlertDialogAction
-                      onClick={() => handleDelete(story.id)}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedStory(story);
+                        setShowAiEditor(true);
+                      }}
                     >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      {t("editUsingAI")}
+                    </Button>
 
-              {/* MANUAL EDIT */}
-              <button
-              onClick={() => {
-              setSelectedStory(story);
-              setEditingStoryId(story.id);
-              }}
-              className="bg-blue-500 text-white px-4 py-2 rounded-xl"
+                    {!story.isApproved && story.status !== "PUBLISHED" ? (
+                      <Button
+                        className="bg-green-600 hover:bg-green-600/90"
+                        onClick={() => handleApprove(story.id)}
+                      >
+                        {t("approveStory")}
+                      </Button>
+                    ) : null}
 
-              >
+                    {story.isApproved &&
+                    story.status !== "PUBLISHED" &&
+                    story.questions.length === 0 ? (
+                      <Button
+                        onClick={() => handleGenerateQuestions(story.id)}
+                        disabled={questionLoading}
+                      >
+                        {questionLoading
+                          ? t("storyGeneratingQuestions")
+                          : t("storyGenerateQuestions")}
+                      </Button>
+                    ) : null}
 
-              Edit Story
+                    {story.isApproved &&
+                    story.status !== "PUBLISHED" &&
+                    story.questions.length > 0 ? (
+                      <>
+                        <Button onClick={() => handleApproveQuestions(story.id)}>
+                          {t("storyApproveQuestions")}
+                        </Button>
 
-              </button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowAddQuestionForStory(story.id)}
+                        >
+                          {t("storyAddQuestion")}
+                        </Button>
+                      </>
+                    ) : null}
 
-              {/* AI EDIT */}
-              <button
-              onClick={() => {
-              setSelectedStory(story);
-              setShowAiEditor(true);
-              }}
-              className="bg-purple-600 text-white px-4 py-2 rounded-xl"
-
-              >
-
-              Edit using AI
-
-              </button>
-
-              {/* APPROVE */}
-              {/* {story.status === "DRAFT" && (
-              <button
-              onClick={() => handleApprove(story.id)}
-              className="bg-green-600 text-white px-4 py-2 rounded-xl"
-              >
-              Approve </button>
-              )} */}
-              
-              {/* {story.status === "DRAFT" && story.questions.length > 0 && (
-                <>
-                  <button
-                    onClick={() =>
-                      handleApproveQuestions(
-                        story.id
-                      )
-                    }
-                    className="bg-purple-600 text-white px-4 py-2 rounded-xl"
-                  >
-                    Approve questions
-                  </button>
-
-                   <button
-                    onClick={() =>
-                      setShowAddQuestionForStory(
-                        story.id
-                      )
-                    }
-                    className="bg-blue-600 text-white px-4 py-2 rounded-xl"
-                  >
-                    Add Question
-                  </button>
-                </>
-              )} */}
-
-{/* 1-القصة غير معتمدة وغير منشورة */}
-              {!story.isApproved && story.status !== "PUBLISHED" && (
-                <button
-                  onClick={() => handleApprove(story.id)}
-                  className="bg-green-600 text-white px-4 py-2 rounded-xl"
-                >
-                  Approve Story
-                </button>
-              )}
-
-{/* 2-القصة معتمدة لكن غير منشورة  */}
-              {story.isApproved && story.status !== "PUBLISHED" && story.questions.length === 0 && (
-              <button
-                onClick={() => handleGenerateQuestions(story.id)}
-                disabled={questionLoading}
-                className="bg-purple-600 text-white px-4 py-2 rounded-xl"
-              >
-                {questionLoading
-                  ? "Generating..."
-                  : "Generate Questions"}
-              </button>
-            )}
-
-{/* القصة معتمدة لكن غير منشورة وفي اسئلة */}
-              {story.isApproved && story.status !== "PUBLISHED" && story.questions.length > 0 && (
-                <>
-                  <button
-                    onClick={() => handleApproveQuestions(story.id)}
-                    className="bg-purple-600 text-white px-4 py-2 rounded-xl"
-                  >
-                    Approve Questions
-                  </button>
-
-                  <button
-                    onClick={() => setShowAddQuestionForStory(story.id)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-xl"
-                  >
-                    Add Question
-                  </button>
-                </>
-              )}
-
-{/* القصة منشورة */}
-              { story.questions.length > 0 && (
-               <button
-                  disabled={loadingStoryId === story.id}
-                  onClick={() =>
-                    handleRegenerateQuestions(story.id)
-                  }
-                  className="
-                    bg-orange-600
-                    text-white
-                    px-6
-                    py-3
-                    rounded-xl
-                    disabled:opacity-50
-                    disabled:cursor-not-allowed
-                  "
-                >
-                  {loadingStoryId === story.id
-                    ? "Regenerating Questions..."
-                    : "Regenerate Questions"}
-                </button>
-              )}
-              </div>
-
+                    {story.questions.length > 0 ? (
+                      <Button
+                        className="bg-orange-600 hover:bg-orange-600/90"
+                        disabled={loadingStoryId === story.id}
+                        onClick={() => handleRegenerateQuestions(story.id)}
+                      >
+                        {loadingStoryId === story.id
+                          ? t("storyRegeneratingQuestions")
+                          : t("storyRegenerateQuestions")}
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
-
               </div>
-
             ))}
-
           </div>
-
         )}
-
       </div>
 
-        {/*chat */}
-        {showAiEditor && (
-
-          <div className="fixed top-0 right-0 w-[400px] h-screen bg-white shadow-2xl border-l z-50 flex flex-col">
-
-            {/* HEADER */}
-            <div className="p-4 border-b flex justify-between items-center">
-
-              <h2 className="text-xl font-bold">
-                AI Story Editor
-              </h2>
-
-              <button
-                onClick={() => setShowAiEditor(false)}
-                className="text-gray-500"
-              >
-                ✕
-              </button>
-
+      {showAiEditor ? (
+        <div className="fixed right-0 top-0 z-50 flex h-screen w-full max-w-md flex-col border-l border-border bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b p-4">
+            <div>
+              <h2 className="text-xl font-bold">{t("aiStoryEditor")}</h2>
+              <p className="text-xs text-muted-foreground">
+                {t("childrenStoriesAiEditorDescription")}
+              </p>
             </div>
 
-            {/* CHAT */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-
-              {chatMessages.map(
-                (msg, index) => (
-
-                  <div
-                    key={index}
-                    className={`p-3 rounded-xl max-w-[85%] ${
-                      msg.role === "user"
-                        ? "bg-purple-600 text-white ml-auto"
-                        : "bg-gray-200 text-black"
-                    }`}
-                  >
-
-                    {msg.text}
-
-                  </div>
-
-                ),
-              )}
-
-              {aiLoading && (
-
-                <div className="bg-gray-200 p-3 rounded-xl w-fit">
-
-                  Updating story...
-
-                </div>
-
-              )}
-
-            </div>
-
-            {/* INPUT */}
-            <div className="p-4 border-t flex gap-2">
-
-              {/* <input
-                value={aiMessage}
-                onChange={(e) =>
-                  setAiMessage(e.target.value)
-                }
-
-                placeholder="Ask AI to modify the story..."
-
-                className="flex-1 border rounded-xl px-3 py-2"
-              /> */}
-              <textarea
-              value={aiMessage}
-              onChange={(e) => {
-                setAiMessage(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height = `${e.target.scrollHeight}px`;
-              }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleEditWithAi();
-                  }
-                }}
-                  rows={1}
-              placeholder="Ask AI to modify the story..."
-              className="
-                flex-1
-                border
-                rounded-xl
-                px-3
-                py-2
-                resize-none
-                overflow-hidden
-                min-h-[44px]
-                max-h-[250px]
-              "
-            />
-              <button
-                onClick={handleEditWithAi}
-                disabled={aiLoading}
-                className="bg-purple-600 text-white px-4 py-2 rounded-xl"
-              >
-
-                Send
-
-              </button>
-
-            </div>
-
+            <button
+              type="button"
+              onClick={() => setShowAiEditor(false)}
+              className="text-muted-foreground"
+            >
+              {t("close")}
+            </button>
           </div>
 
-        )}
+          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+            {chatMessages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}`}
+                className={`max-w-[85%] rounded-xl p-3 ${
+                  message.role === "user"
+                    ? "ml-auto bg-purple-600 text-white"
+                    : "bg-gray-200 text-black"
+                }`}
+              >
+                {message.text}
+              </div>
+            ))}
+
+            {aiLoading ? (
+              <div className="w-fit rounded-xl bg-gray-200 p-3">
+                {t("updatingStory")}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex gap-2 border-t p-4">
+            <textarea
+              value={aiMessage}
+              onChange={(event) => {
+                setAiMessage(event.target.value);
+                event.target.style.height = "auto";
+                event.target.style.height = `${event.target.scrollHeight}px`;
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void handleEditWithAi();
+                }
+              }}
+              rows={1}
+              placeholder={t("askAiToModifyStory")}
+              className="min-h-[44px] max-h-[250px] flex-1 resize-none overflow-hidden rounded-xl border px-3 py-2"
+            />
+            <Button onClick={handleEditWithAi} disabled={aiLoading}>
+              {t("send")}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,33 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Bot, Menu, Sparkles } from "lucide-react";
+import { Bot, Menu, Sparkles, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+
 import PlayfulBackground from "@/components/PlayfulBackground";
+import ChatInput from "@/components/chat/ChatInput";
 import ChatSidebar from "@/components/chat/ChatSidebar";
+import ChatTopControls from "@/components/chat/ChatTopControls";
+import JourneyMessage from "@/components/chat/JourneyMessage";
 import MessageBubble, { type ChatAttachment } from "@/components/chat/MessageBubble";
 import TypingIndicator from "@/components/chat/TypingIndicator";
-import ChatInput from "@/components/chat/ChatInput";
-import ChatTopControls from "@/components/chat/ChatTopControls";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotificationHandler } from "@/hooks/useFirebaseNotifications";
 import {
-  type AskMessage,
-  type Conversation,
   createConversation,
   deleteConversation as dbDeleteConversation,
   listConversations,
   listMessages,
   streamChat,
+  type AskMessage,
+  type Conversation,
 } from "@/lib/chat";
-import { getTokenStats } from "@/lib/profile";
-import JourneyMessage from "@/components/chat/JourneyMessage";
 import {
   generateStoryFromDrawing,
   getDrawingStorySession,
   sendDrawingStoryMessage,
   startDrawingStory,
 } from "@/lib/drawingStory";
-import { useNotificationHandler } from "@/hooks/useFirebaseNotifications";
+import { getTokenStats } from "@/lib/profile";
 
 const IMAGE_FILE_EXTENSIONS = new Set([
   "apng",
@@ -556,7 +558,7 @@ const Chat = () => {
 
   return (
     <div className="relative flex min-h-screen bg-background">
-      <div className="playful-bg pointer-events-none absolute inset-0 opacity-40" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 playful-bg opacity-40" aria-hidden />
       <PlayfulBackground />
 
       <ChatSidebar
@@ -573,22 +575,28 @@ const Chat = () => {
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-border/50 bg-card/80 px-3 py-2.5 backdrop-blur lg:hidden">
           <button
+            type="button"
             onClick={() => setSidebarOpen(true)}
             className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-muted"
             aria-label={t("openChats")}
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="min-w-0 flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary shadow-button">
               <Sparkles className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
             </div>
-            <span className="font-bold">{t("sparkyName")}</span>
+            <div className="min-w-0">
+              <span className="block truncate font-bold">{t("sparkyName")}</span>
+              <span className="block text-[11px] text-muted-foreground">
+                {t("chatCompanionLabel")}
+              </span>
+            </div>
           </div>
           <ChatTopControls />
         </header>
 
-        <div className="absolute right-4 top-4 z-30 hidden animate-fade-slide-up lg:flex">
+        <div className="absolute right-4 top-4 z-30 hidden lg:flex">
           <ChatTopControls />
         </div>
 
@@ -597,31 +605,55 @@ const Chat = () => {
             {loadingMsgs ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((item) => (
-                  <div key={item} className="flex gap-2">
-                    <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-                    <div className="h-16 max-w-md flex-1 animate-pulse rounded-2xl bg-muted" />
+                  <div key={item} className="flex gap-3">
+                    <div className="h-9 w-9 animate-pulse rounded-full bg-muted" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-32 animate-pulse rounded-full bg-muted" />
+                      <div className="h-20 max-w-md animate-pulse rounded-3xl bg-card shadow-soft" />
+                    </div>
                   </div>
                 ))}
               </div>
             ) : showEmpty ? (
-              <div className="flex flex-col items-center py-12 text-center animate-fade-slide-up">
-                <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-primary shadow-card">
-                  <Bot className="h-10 w-10 text-primary-foreground" strokeWidth={2.2} />
-                </div>
-                <h1 className="mb-2 text-3xl font-bold">{t("chatWelcome")}</h1>
-                <p className="mb-8 max-w-md text-muted-foreground">{t("chatDescription")}</p>
-                <div className="grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
-                  {suggestedMessages.map((suggestion) => (
-                    <button
-                      key={suggestion.text}
-                      onClick={() => handleSend(suggestion.text)}
-                      disabled={streaming}
-                      className="rounded-2xl border-2 border-border/60 bg-card p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <div className="mb-1 text-2xl">{suggestion.emoji}</div>
-                      <div className="text-sm font-semibold">{suggestion.text}</div>
-                    </button>
-                  ))}
+              <div className="animate-fade-slide-up py-6">
+                <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-card/90 p-6 text-center shadow-card backdrop-blur-sm sm:p-8">
+                  <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[1.75rem] bg-gradient-primary shadow-card">
+                    <Bot className="h-10 w-10 text-primary-foreground" strokeWidth={2.2} />
+                  </div>
+                  <h1 className="text-3xl font-bold">{t("chatWelcome")}</h1>
+                  <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground sm:text-base">
+                    {t("chatDescription")}
+                  </p>
+
+                  <div className="mt-6 grid gap-3 rounded-3xl bg-muted/30 p-4 text-left sm:grid-cols-2">
+                    <div className="rounded-2xl bg-card px-4 py-3 shadow-soft">
+                      <div className="text-sm font-semibold text-foreground">{t("chatEmptyCardOneTitle")}</div>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        {t("chatEmptyCardOneDescription")}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-card px-4 py-3 shadow-soft">
+                      <div className="text-sm font-semibold text-foreground">{t("chatEmptyCardTwoTitle")}</div>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        {t("chatEmptyCardTwoDescription")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid w-full gap-3 sm:grid-cols-2">
+                    {suggestedMessages.map((suggestion) => (
+                      <button
+                        key={suggestion.text}
+                        type="button"
+                        onClick={() => handleSend(suggestion.text)}
+                        disabled={streaming}
+                        className="rounded-2xl border-2 border-border/60 bg-card p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <div className="mb-1 text-2xl">{suggestion.emoji}</div>
+                        <div className="text-sm font-semibold">{suggestion.text}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -657,20 +689,29 @@ const Chat = () => {
         </div>
 
         {drawingFinished ? (
-          <div className="mb-4 flex justify-center">
-            <button
-              onClick={handleGenerateStory}
-              className="rounded-xl bg-purple-600 px-6 py-3 text-white"
-              disabled={drawingLoading}
-            >
-              {drawingLoading ? drawingStatus : t("chatBringDrawingToLife")}
-            </button>
+          <div className="mx-auto mb-2 w-full max-w-3xl px-3 sm:px-6">
+            <div className="rounded-3xl border border-primary/20 bg-primary/5 p-4 shadow-soft">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                    <Wand2 className="h-4 w-4" />
+                    {t("chatDrawingReadyTitle")}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t("chatDrawingReadyDescription")}
+                  </p>
+                </div>
+                <Button onClick={handleGenerateStory} disabled={drawingLoading}>
+                  {drawingLoading ? drawingStatus || t("generating") : t("chatBringDrawingToLife")}
+                </Button>
+              </div>
+            </div>
           </div>
         ) : null}
 
         <ChatInput
           onSend={handleSend}
-          disabled={streaming}
+          disabled={streaming || drawingLoading}
           isStreaming={streaming}
           onStop={handleStop}
           tokenBalance={tokenBalance}

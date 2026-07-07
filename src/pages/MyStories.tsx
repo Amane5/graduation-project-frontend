@@ -1,924 +1,481 @@
-// import { useEffect, useRef, useState } from "react";
-// import { useNavigate, useParams } from "react-router-dom";
-// import { generateQuestionAudio, getChildStories, getMyStories, speechToTextQuestion } from "@/lib/story";
-// import { submitAnswers } from "@/lib/questions";
-// import Confetti from "react-confetti";
-
-// export default function MyStories() {
-//   const { childId } = useParams();
-//   const navigate = useNavigate();
-
-//   const [stories, setStories] = useState<any[]>([]);
-//   const [selectedStory, setSelectedStory] = useState<any | null>(null);
-
-//   const audioRef = useRef<HTMLAudioElement | null>(null);
-//   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
-
-//   const [showQuestions, setShowQuestions] = useState(false);
-  
-//   const [answers, setAnswers] = useState<Record<number, string>>({});
-
-//   const [answersSubmitted, setAnswersSubmitted] = useState(false);
-
-//   const [showConfetti, setShowConfetti] = useState(false);
-
-//   const [playingAudioId, setPlayingAudioId] = useState<number | null>(null);
-
-//   const [recordingQuestionId, setRecordingQuestionId] = useState<number | null>(null);
-
-//   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-
-//   const chunksRef = useRef<Blob[]>([]);
-
-//   const startRecording = async (
-//     questionId: number
-//   ) => {
-//     const stream =
-//       await navigator.mediaDevices
-//         .getUserMedia({
-//           audio: true,
-//         });
-
-//     const recorder =
-//       new MediaRecorder(stream);
-
-//     chunksRef.current = [];
-
-//     recorder.ondataavailable = (
-//       e
-//     ) => {
-//       chunksRef.current.push(e.data);
-//     };
-
-//     recorder.start();
-
-//     mediaRecorderRef.current =
-//       recorder;
-
-//     setRecordingQuestionId(
-//       questionId
-//     );
-//   };
-
-//   const stopRecording = async (
-//   questionId: number
-// ) => {
-//   const recorder =
-//     mediaRecorderRef.current;
-
-//   if (!recorder) return;
-
-//   recorder.stop();
-
-//   recorder.onstop =
-//     async () => {
-//       const blob =
-//         new Blob(
-//           chunksRef.current,
-//           {
-//             type:
-//               "audio/webm",
-//           }
-//         );
-
-//       const res =
-//         await speechToTextQuestion(
-//           questionId,
-//           blob
-//         );
-// console.log("STT RESPONSE", res);
-
-//       setAnswers((prev) => ({
-//         ...prev,
-//         [questionId]:
-//           res.data.text,
-//       }));
-
-//       setRecordingQuestionId(
-//         null
-//       );
-//     };
-// };
-
-// useEffect(() => {
-//   console.log("ANSWERS", answers);
-// }, [answers]);
-//   // ---------------- LOAD ----------------
-//   useEffect(() => {
-//   console.log("STORIES", stories);
-// }, [stories]);
-
-//   useEffect(() => {
-//     const load = async () => {
-//       const res = childId
-//         ? await getChildStories(Number(childId))
-//         : await getMyStories();
-
-//       setStories(res.data);
-//       console.log("API RESPONSE", res.data);
-//     };
-
-//     load();
-//   }, [childId]);
-
-//   useEffect(() => {
-//   const audio = audioRef.current;
-//   if (!audio || !selectedStory) return;
-
-//   const onTimeUpdate = () => {
-//     const time = audio.currentTime;
-
-//     console.log("time:", time);
-
-//     const index = selectedStory.scenes.findIndex(
-//       (s: any) =>
-//         s.startTime != null &&
-//         s.endTime != null &&
-//         time >= s.startTime &&
-//         time < s.endTime
-//     );
-
-//     console.log("index:", index);
-// console.log("SCENES:", selectedStory.scenes);
-// console.log("TIME:", audio.currentTime);
-// console.log("FIRST SCENE:", selectedStory.scenes?.[0]);
-//     if (index !== -1) {
-//       setCurrentSceneIndex(index);
-//     }
-//   };
-
-//   audio.addEventListener("timeupdate", onTimeUpdate);
-
-
-//   return () => audio.removeEventListener("timeupdate", onTimeUpdate);
-// }, [selectedStory]);
-
-//   useEffect(() => {
-//     setCurrentSceneIndex(0);
-//   }, [selectedStory]);
-
-//   useEffect(() => {
-//   if (!selectedStory) return;
-
-//   if (
-//     !selectedStory.audioUrl &&
-//     currentSceneIndex === selectedStory.scenes.length - 1
-//   ) {
-//     setShowQuestions(true);
-//   }
-// }, [currentSceneIndex, selectedStory]);
-
-//   // ---------------- GRID VIEW ----------------
-//   if (!selectedStory) {
-//     return (
-//       <div className="p-6 grid md:grid-cols-2 gap-4">
-//         {stories.map((story) => (
-//           <div key={story.id} className="bg-white p-4 rounded-xl shadow">
-//             <h2 className="font-bold text-xl">{story.title}</h2>
-
-//             <p className="text-gray-600 mb-3">
-//               {story.content.slice(0, 120)}...
-//             </p>
-
-//             <button
-//               onClick={() => {
-//                 setSelectedStory(story);
-//                 setShowQuestions(false);
-//                 setAnswers({});
-//                 setCurrentSceneIndex(0);
-//               setAnswersSubmitted(false);
-//               }}
-//               className="bg-blue-500 text-white px-4 py-2 rounded"
-//             >
-//               Open Story
-//             </button>
-//           </div>
-//         ))}
-//       </div>
-//     );
-//   }
-
-//   // ---------------- PLAYER VIEW ----------------
-//   const story = selectedStory;
-//   const scene = story.scenes?.[currentSceneIndex];
-
-//   const handleSubmitAnswers = async () => {
-//     if(answersSubmitted) return
-//     try {
-//       await submitAnswers(
-//         story.id,
-//         {
-//           answers: story.questions.map(
-//               (q: any) => ({
-//                 questionId: q.id,
-//                 answer:
-//                   answers[q.id] || "",
-//               })
-//             ),
-//         }
-//       );
-//     setAnswersSubmitted(true)
-//     setShowConfetti(true);
-//     setTimeout(() => {
-//       setShowConfetti(false);
-//     }, 5000);
-
-//     } catch (err) {
-//       console.log(err);
-//     }
-//   };
-
-//   const handlePlayQuestionAudio = async (questionId: number, questionText: string) => {
-//   try {
-//     setPlayingAudioId(questionId);
-
-//     const res = await generateQuestionAudio(questionId);
-
-// const audio = new Audio(
-//   `http://localhost:3000${res.data.audioUrl}`
-// );
-
-//     audio.play();
-
-//     audio.onended = () => {
-//       setPlayingAudioId(null);
-//     };
-//   } catch (err) {
-//     console.log(err);
-//     setPlayingAudioId(null);
-//   }
-// };
-//   return (
-//     <div className="fixed inset-0 bg-gray-100">
-//       {/* back button */}
-//       <div className="h-20 flex items-center justify-between px-6">
-//         <button
-//           onClick={() => setSelectedStory(null)}
-//           className="mb-4 bg-gray-200 px-3 py-2 rounded"
-//         >
-//           ← Back
-//         </button>
-
-//         {story.audioUrl && (
-//         <audio
-//           ref={audioRef}
-//           controls
-//           // className="w-full mb-6"
-//           className="w-[400px]"
-//           onEnded={() => {
-//           setShowQuestions(true);
-//         }}
-//         >
-//           <source
-//             src={`http://localhost:3000${story.audioUrl}`}
-//             type="audio/mpeg"
-//           />
-//         </audio>
-//         )}
-//       </div>
-
-//       <div className="h-screen flex flex-col overflow-hidden">
-
-//         <div className="flex-1 overflow-y-auto px-4">
-//           {/* scene */}
-//           <div className="flex-1 px-4 flex flex-col items-center">
-//             <h2 className="text-2xl font-bold mt-4">{scene?.title}</h2>
-
-//             {showConfetti && (
-//               <>
-//                 <Confetti />
-
-//                 <div className="fixed inset-0 flex items-center justify-center z-50">
-//                   <div className="bg-white p-8 rounded-3xl shadow-xl text-center">
-//                     <div className="text-6xl mb-4">🏆</div>
-
-//                     <h2 className="text-3xl font-bold">
-//                       أحسنت يا بطل!
-//                     </h2>
-
-//                     <p className="mt-3">
-//                       لقد أكملت أسئلة القصة بنجاح
-//                     </p>
-//                   </div>
-//                 </div>
-//               </>
-//             )}
-//             {scene?.imageUrl && (
-//               <img
-//                 src={`http://localhost:3000${scene.imageUrl}`}
-//                 className="h-[65vh] w-auto object-contain"
-//               />
-//             )}
-
-//             <p className="text-lg text-center mt-3 max-w-3xl leading-relaxed">
-//               {scene?.content}
-//             </p>
-//           </div>
-
-//           {/* privous and next buttons  */}
-//           <div className="text-sm text-gray-400 mt-3">
-//             Scene {currentSceneIndex + 1} / {story.scenes.length}
-//             {!story.audioUrl && (
-//             <div className="flex justify-between mt-4">
-//               <button
-//                 onClick={() =>
-//                   setCurrentSceneIndex((prev) => prev - 1)
-//                 }
-//                 disabled={currentSceneIndex === 0}
-//                 className="bg-gray-500 text-white px-4 py-2 rounded disabled:opacity-50"
-//               >
-//                 Previous
-//               </button>
-
-//               <button
-//                 onClick={() =>
-//                   setCurrentSceneIndex((prev) => prev + 1)
-//                 }
-//                 disabled={
-//                   currentSceneIndex === story.scenes.length - 1
-//                 }
-//                 className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
-//               >
-//                 Next
-//               </button>
-//             </div>
-//           )}
-//           </div>
-
-//           {/* questions place  */}
-//           {showQuestions && (
-//           <div className="mt-8 bg-white p-6 rounded-xl shadow w-full max-w-3xl mx-auto">
-//             <h2 className="text-2xl font-bold mb-4">
-//               Questions
-//             </h2>
-
-//             {story.questions?.map((q: any) => (
-//             <div
-//               key={q.id}
-//               className="mb-4"
-//             >
-//               <div className="flex items-center gap-2 mb-2">
-//                 <p className="font-medium mb-2">
-//                   {q.question}
-//                 </p>
-
-//                 <button
-//                   onClick={() => handlePlayQuestionAudio(q.id, q.question)}
-//                   className="text-blue-600 text-xl"
-//                   disabled={playingAudioId === q.id}
-//                 >
-//                   {playingAudioId === q.id ? "🔊..." : "🔊"}
-//                 </button>
-
-//                 <button
-//                 onClick={() =>
-//                   recordingQuestionId === q.id
-//                     ? stopRecording(q.id)
-//                     : startRecording(q.id)
-//                 }
-//                 className="text-red-600 text-xl"
-//               >
-//                 {recordingQuestionId === q.id
-//                   ? "⏹️"
-//                   : "🎤"}
-//               </button>
-//               </div>
-
-//               <textarea
-//                     className="w-full border rounded-lg p-2"
-//                     value={answers[q.id] || ""}
-//                     onChange={(e) =>
-//                       setAnswers((prev) => ({
-//                         ...prev,
-//                         [q.id]: e.target.value,
-//                       }))
-//                     }
-//                   />
-//                 </div>
-//             ))}
-
-//             <button
-//               disabled={answersSubmitted}
-//               onClick={handleSubmitAnswers}
-//               className="bg-green-600 text-white px-4 py-2 rounded-xl"
-//             >
-//               {answersSubmitted ? "Answers Submitted" : "Submit Answers "}
-//             </button>
-//           </div>
-//           )}
-
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { generateQuestionAudio, getChildStories, getMyStories, speechToTextQuestion } from "@/lib/story";
-import { submitAnswers } from "@/lib/questions";
+import { useParams } from "react-router-dom";
+import { BookOpen, ChevronLeft, ChevronRight, Mic, Trophy, Volume2 } from "lucide-react";
 import Confetti from "react-confetti";
 import { useTranslation } from "react-i18next";
 
+import { submitAnswers } from "@/lib/questions";
+import {
+  generateQuestionAudio,
+  getChildStories,
+  getMyStories,
+  speechToTextQuestion,
+} from "@/lib/story";
+
+interface StoryQuestion {
+  id: number;
+  question: string;
+}
+
+interface StoryScene {
+  id: number;
+  title: string;
+  content: string;
+  imageUrl?: string | null;
+  startTime?: number | null;
+  endTime?: number | null;
+}
+
+interface StoryRecord {
+  id: number;
+  title: string;
+  content: string;
+  audioUrl?: string | null;
+  scenes: StoryScene[];
+  questions: StoryQuestion[];
+}
+
+const resolveAssetUrl = (url?: string | null) => {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+  return `${baseUrl}${url}`;
+};
+
 export default function MyStories() {
   const { childId } = useParams();
-  const navigate = useNavigate();
+  const { t } = useTranslation();
 
-  const [stories, setStories] = useState<any[]>([]);
-  const [selectedStory, setSelectedStory] = useState<any | null>(null);
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [stories, setStories] = useState<StoryRecord[]>([]);
+  const [selectedStory, setSelectedStory] = useState<StoryRecord | null>(null);
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
-
   const [showQuestions, setShowQuestions] = useState(false);
-  
   const [answers, setAnswers] = useState<Record<number, string>>({});
-
   const [answersSubmitted, setAnswersSubmitted] = useState(false);
-
   const [showConfetti, setShowConfetti] = useState(false);
-
   const [playingAudioId, setPlayingAudioId] = useState<number | null>(null);
-
   const [recordingQuestionId, setRecordingQuestionId] = useState<number | null>(null);
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-
   const chunksRef = useRef<Blob[]>([]);
 
-  const { t } = useTranslation();
-  const startRecording = async (
-    questionId: number
-  ) => {
-    const stream =
-      await navigator.mediaDevices
-        .getUserMedia({
-          audio: true,
-        });
-
-    const recorder =
-      new MediaRecorder(stream);
-
+  const startRecording = async (questionId: number) => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
     chunksRef.current = [];
 
-    recorder.ondataavailable = (
-      e
-    ) => {
-      chunksRef.current.push(e.data);
+    recorder.ondataavailable = (event) => {
+      chunksRef.current.push(event.data);
     };
 
     recorder.start();
-
-    mediaRecorderRef.current =
-      recorder;
-
-    setRecordingQuestionId(
-      questionId
-    );
+    mediaRecorderRef.current = recorder;
+    setRecordingQuestionId(questionId);
   };
 
-  const stopRecording = async (
-  questionId: number
-) => {
-  const recorder =
-    mediaRecorderRef.current;
+  const stopRecording = async (questionId: number) => {
+    const recorder = mediaRecorderRef.current;
 
-  if (!recorder) return;
+    if (!recorder) return;
 
-  recorder.stop();
+    recorder.stop();
 
-  recorder.onstop =
-    async () => {
-      const blob =
-        new Blob(
-          chunksRef.current,
-          {
-            type:
-              "audio/webm",
-          }
-        );
+    recorder.onstop = async () => {
+      const blob = new Blob(chunksRef.current, {
+        type: "audio/webm",
+      });
 
-      const res =
-        await speechToTextQuestion(
-          questionId,
-          blob
-        );
-console.log("STT RESPONSE", res);
+      const response = await speechToTextQuestion(questionId, blob);
 
       setAnswers((prev) => ({
         ...prev,
-        [questionId]:
-          res.data.text,
+        [questionId]: response.data.text,
       }));
 
-      setRecordingQuestionId(
-        null
-      );
+      setRecordingQuestionId(null);
     };
-};
-
-useEffect(() => {
-  console.log("ANSWERS", answers);
-}, [answers]);
-  // ---------------- LOAD ----------------
-  useEffect(() => {
-  console.log("STORIES", stories);
-}, [stories]);
+  };
 
   useEffect(() => {
     const load = async () => {
-      const res = childId
+      const response = childId
         ? await getChildStories(Number(childId))
         : await getMyStories();
 
-      setStories(res.data);
-      console.log("API RESPONSE", res.data);
+      setStories(response.data);
     };
 
-    load();
+    void load();
   }, [childId]);
 
   useEffect(() => {
-  const audio = audioRef.current;
-  if (!audio || !selectedStory) return;
+    const audio = audioRef.current;
+    if (!audio || !selectedStory) return;
 
-  const onTimeUpdate = () => {
-    const time = audio.currentTime;
+    const onTimeUpdate = () => {
+      const time = audio.currentTime;
 
-    console.log("time:", time);
+      const index = selectedStory.scenes.findIndex(
+        (scene) =>
+          scene.startTime != null &&
+          scene.endTime != null &&
+          time >= scene.startTime &&
+          time < scene.endTime,
+      );
 
-    const index = selectedStory.scenes.findIndex(
-      (s: any) =>
-        s.startTime != null &&
-        s.endTime != null &&
-        time >= s.startTime &&
-        time < s.endTime
-    );
+      if (index !== -1) {
+        setCurrentSceneIndex(index);
+      }
+    };
 
-    console.log("index:", index);
-console.log("SCENES:", selectedStory.scenes);
-console.log("TIME:", audio.currentTime);
-console.log("FIRST SCENE:", selectedStory.scenes?.[0]);
-    if (index !== -1) {
-      setCurrentSceneIndex(index);
-    }
-  };
+    audio.addEventListener("timeupdate", onTimeUpdate);
 
-  audio.addEventListener("timeupdate", onTimeUpdate);
-
-
-  return () => audio.removeEventListener("timeupdate", onTimeUpdate);
-}, [selectedStory]);
+    return () => audio.removeEventListener("timeupdate", onTimeUpdate);
+  }, [selectedStory]);
 
   useEffect(() => {
     setCurrentSceneIndex(0);
   }, [selectedStory]);
 
   useEffect(() => {
-  if (!selectedStory) return;
-  const hasQuestions = selectedStory.questions?.length > 0;
-  if (hasQuestions && !selectedStory.audioUrl && currentSceneIndex === selectedStory.scenes.length - 1) {
-    setShowQuestions(true);
-  }
-}, [currentSceneIndex, selectedStory]);
+    if (!selectedStory) return;
 
-  // ---------------- GRID VIEW ----------------
+    const hasQuestions = selectedStory.questions?.length > 0;
+
+    if (
+      hasQuestions &&
+      !selectedStory.audioUrl &&
+      currentSceneIndex === selectedStory.scenes.length - 1
+    ) {
+      setShowQuestions(true);
+    }
+  }, [currentSceneIndex, selectedStory]);
+
+  const handleSubmitAnswers = async () => {
+    if (!selectedStory || answersSubmitted) return;
+
+    try {
+      await submitAnswers(selectedStory.id, {
+        answers: selectedStory.questions.map((question) => ({
+          questionId: question.id,
+          answer: answers[question.id] || "",
+        })),
+      });
+
+      setAnswersSubmitted(true);
+      setShowQuestions(false);
+      setShowConfetti(true);
+      window.setTimeout(() => {
+        setShowConfetti(false);
+      }, 5000);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handlePlayQuestionAudio = async (questionId: number) => {
+    try {
+      setPlayingAudioId(questionId);
+
+      const response = await generateQuestionAudio(questionId);
+      const audio = new Audio(resolveAssetUrl(response.data.audioUrl));
+
+      void audio.play();
+      audio.onended = () => {
+        setPlayingAudioId(null);
+      };
+    } catch (error) {
+      console.log(error);
+      setPlayingAudioId(null);
+    }
+  };
+
   if (!selectedStory) {
     return (
-      <div className="grid gap-4 p-6 md:grid-cols-2">
-        {stories.map((story) => (
-          <div
-            key={story.id}
-            className="rounded-xl border border-border bg-card p-4 text-card-foreground shadow"
-          >
-            <h2 className="text-xl font-bold">{story.title}</h2>
-
-            <p className="mb-3 text-muted-foreground">
-              {story.content.slice(0, 120)}...
-            </p>
-
-            <button
-              onClick={() => {
-                setSelectedStory(story);
-                setShowQuestions(false);
-                setAnswers({});
-                setCurrentSceneIndex(0);
-              setAnswersSubmitted(false);
-              }}
-              className="bg-blue-500 text-white px-4 py-2 rounded"
-            >
-              Open Story
-            </button>
+      <div className="min-h-screen bg-background px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-8 rounded-[2rem] border border-border/50 bg-card/85 p-6 shadow-card backdrop-blur-sm">
+            <div className="max-w-2xl">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                <BookOpen className="h-3.5 w-3.5" />
+                {t("storyLibraryBadge")}
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                {t("storyLibraryTitle")}
+              </h1>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-base">
+                {t("storyLibraryDescription")}
+              </p>
+            </div>
           </div>
-        ))}
+
+          {stories.length === 0 ? (
+            <div className="rounded-[2rem] border border-dashed border-border/70 bg-card/70 p-10 text-center shadow-soft">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <BookOpen className="h-7 w-7" />
+              </div>
+              <h2 className="mt-4 text-xl font-bold">{t("storyLibraryEmptyTitle")}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {t("storyLibraryEmptyDescription")}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {stories.map((story) => (
+                <button
+                  key={story.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedStory(story);
+                    setShowQuestions(false);
+                    setAnswers({});
+                    setCurrentSceneIndex(0);
+                    setAnswersSubmitted(false);
+                  }}
+                  className="group rounded-[2rem] border border-border/60 bg-card/90 p-5 text-left shadow-soft transition-all hover:-translate-y-1 hover:shadow-card"
+                >
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-bold text-foreground">{story.title}</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {t("storySceneCount", { count: story.scenes.length })}
+                        {story.questions.length > 0
+                          ? ` - ${t("storyQuestionCount", { count: story.questions.length })}`
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                      {t("storyRead")}
+                    </div>
+                  </div>
+
+                  <p className="line-clamp-4 text-sm leading-6 text-muted-foreground">
+                    {story.content}
+                  </p>
+
+                  <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary">
+                    {t("storyOpen")}
+                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
-  // ---------------- PLAYER VIEW ----------------
   const story = selectedStory;
-  const scene = story.scenes?.[currentSceneIndex];
+  const scene = story.scenes[currentSceneIndex];
+  const hasAudio = Boolean(story.audioUrl);
 
-  const handleSubmitAnswers = async () => {
-    if(answersSubmitted) return
-    try {
-      await submitAnswers(
-        story.id,
-        {
-          answers: story.questions.map(
-              (q: any) => ({
-                questionId: q.id,
-                answer:
-                  answers[q.id] || "",
-              })
-            ),
-        }
-      );
-    setAnswersSubmitted(true)
-    setShowQuestions(false);
-    setShowConfetti(true);
-    setTimeout(() => {
-      setShowConfetti(false);
-    }, 5000);
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-indigo-50 to-purple-100 px-4 pb-12 pt-24 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 sm:px-6">
+      {showConfetti ? (
+        <>
+          <div className="pointer-events-none fixed inset-0 z-[100]">
+            <Confetti />
+          </div>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div className="rounded-[2rem] border border-border bg-card p-8 text-center text-card-foreground shadow-2xl">
+              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Trophy className="h-10 w-10" />
+              </div>
+              <h2 className="text-3xl font-bold">{t("storyCelebrationTitle")}</h2>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {t("storyCelebrationDescription")}
+              </p>
+            </div>
+          </div>
+        </>
+      ) : null}
 
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  const handlePlayQuestionAudio = async (questionId: number, questionText: string) => {
-  try {
-    setPlayingAudioId(questionId);
-
-    const res = await generateQuestionAudio(questionId);
-
-const audio = new Audio(
-  `http://localhost:3000${res.data.audioUrl}`
-);
-
-    audio.play();
-
-    audio.onended = () => {
-      setPlayingAudioId(null);
-    };
-  } catch (err) {
-    console.log(err);
-    setPlayingAudioId(null);
-  }
-};
-return (
-  <div className="fixed inset-0 overflow-hidden bg-gradient-to-br from-sky-50 via-indigo-50 to-purple-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950">
-    {/* background */}
-    <div className="absolute inset-0">
-      <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-blue-300/20 blur-3xl" />
-      <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-purple-300/20 blur-3xl" />
-      <div className="absolute top-1/2 left-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-pink-300/20 blur-3xl" />
-    </div>
-
-    {/* Header */}
-    <div className="relative z-50 h-20 flex items-center justify-between px-6">
-      <button
-        onClick={() => setSelectedStory(null)}
-        className="rounded-xl border border-border bg-card px-4 py-2 text-card-foreground shadow"
-      >
-        ← Back
-      </button>
-
-      <div className="w-[400px]">
-        {story.audioUrl && (
-          <audio
-            ref={audioRef}
-            controls
-            className="w-full"
-            onEnded={() => {
-              if(story.questions?.length>0){
-                setShowQuestions(true)
-              }
-            }}
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <button
+            type="button"
+            onClick={() => setSelectedStory(null)}
+            className="inline-flex w-fit items-center gap-2 rounded-2xl border border-border bg-card/90 px-4 py-2 text-sm font-semibold text-card-foreground shadow-soft backdrop-blur-sm"
           >
-            <source
-              src={`http://localhost:3000${story.audioUrl}`}
-              type="audio/mpeg"
-            />
-          </audio>
-        )}
-      </div>
-    </div>
+            <ChevronLeft className="h-4 w-4" />
+            {t("back")}
+          </button>
 
-    {/* Scene */}
-    <div className="relative z-10 flex h-[calc(100vh-80px)] items-center justify-center p-6">
+          <div className="rounded-2xl bg-card/80 px-4 py-2 text-sm text-muted-foreground shadow-soft backdrop-blur-sm">
+            {t("storySceneProgress", {
+              current: currentSceneIndex + 1,
+              total: story.scenes.length,
+            })}
+          </div>
+        </div>
 
-      <div
-  key={currentSceneIndex}
-  className="
-    w-full
-    max-w-6xl
-    h-full
-    rounded-3xl
-    bg-white/80 dark:bg-slate-900/80
-    backdrop-blur
-    shadow-2xl
-    overflow-y-auto
-    flex
-    flex-col
-  "
->
-        {/* progress */}
-        <div className="px-8 pt-6">
+        {hasAudio ? (
+          <div className="mb-4 rounded-[1.75rem] border border-border/60 bg-card/90 p-4 shadow-soft backdrop-blur-sm">
+            <div className="mb-2 text-sm font-semibold text-foreground">{t("storyAudioLabel")}</div>
+            <audio
+              ref={audioRef}
+              controls
+              className="w-full"
+              onEnded={() => {
+                if (story.questions.length > 0) {
+                  setShowQuestions(true);
+                }
+              }}
+            >
+              <source src={resolveAssetUrl(story.audioUrl)} type="audio/mpeg" />
+            </audio>
+          </div>
+        ) : null}
+
+        <div className="mb-4 rounded-full bg-white/70 p-1 shadow-soft backdrop-blur-sm dark:bg-slate-900/70">
           <div className="h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
             <div
               className="h-full bg-blue-500 transition-all duration-500"
               style={{
-                width: `${
-                  ((currentSceneIndex + 1) /
-                    story.scenes.length) *
-                  100
-                }%`,
+                width: `${((currentSceneIndex + 1) / story.scenes.length) * 100}%`,
               }}
             />
           </div>
-
-          <p className="mt-2 text-center text-sm text-slate-500 dark:text-slate-400">
-            Scene {currentSceneIndex + 1} of {story.scenes.length}
-          </p>
         </div>
 
-        {/* confetti */}
-        {showConfetti && (
-  <>
-    <div className="fixed inset-0 z-[100] pointer-events-none">
-      <Confetti />
-    </div>
+        <article className="rounded-[2rem] bg-white/85 p-5 shadow-2xl backdrop-blur dark:bg-slate-900/85 sm:p-8">
+          <h2 className="text-center text-3xl font-bold sm:text-4xl">{scene?.title}</h2>
 
-    <div className="fixed inset-0 flex items-center justify-center z-[110]">
-      <div className="rounded-3xl border border-border bg-card p-8 text-center text-card-foreground shadow-xl">
-        <div className="text-6xl mb-4">🏆</div>
-        <h2 className="text-3xl font-bold">Great job, champion!</h2>
-        <p className="mt-3">You have successfully completed the story questions.</p>
-      </div>
-    </div>
-  </>
-)}
-
-        {/* title */}
-        <h2 className="text-4xl font-bold text-center pt-6">
-          {scene?.title}
-        </h2>
-
-        {/* image */}
-        <div className="h-[55vh] flex items-center justify-center px-8 py-4">
-          {scene?.imageUrl && (
-            <img
-            src={`http://localhost:3000${scene.imageUrl}`}
-            className="
-              max-h-full
-              max-w-full
-              object-contain
-            "
-          />
-          )}
-        </div>
-
-        {/* content */}
-        <div className="px-10 pb-8">
-          <p
-            className="
-              text-xl
-              leading-9
-              text-center
-              text-slate-700 dark:text-slate-200
-              max-w-4xl
-              mx-auto
-            "
-          >
-            {scene?.content}
-          </p>
-        </div>
-      </div>
-
-      {/* manual navigation */}
-      {!story.audioUrl && (
-        <>
-          <button
-            onClick={() =>
-              setCurrentSceneIndex((prev) => prev - 1)
-            }
-            disabled={currentSceneIndex === 0}
-            className="
-              fixed
-              left-6
-              top-1/2
-              -translate-y-1/2
-              h-14
-              w-14
-              rounded-full
-              bg-card text-card-foreground border border-border
-              shadow-xl
-              text-2xl
-              disabled:opacity-40
-            "
-          >
-            ←
-          </button>
-
-          <button
-            onClick={() =>
-              setCurrentSceneIndex((prev) => prev + 1)
-            }
-            disabled={
-              currentSceneIndex === story.scenes.length - 1
-            }
-            className="
-              fixed
-              right-6
-              top-1/2
-              -translate-y-1/2
-              h-14
-              w-14
-              rounded-full
-              bg-blue-500
-              text-white
-              shadow-xl
-              text-2xl
-              disabled:opacity-40
-            "
-          >
-            →
-          </button>
-        </>
-      )}
-    </div>
-
-    {/* Questions */}
-    {showQuestions  &&(
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-border bg-card p-6 text-card-foreground shadow-2xl">
-          <h2 className="mb-6 text-3xl font-bold">
-            Questions
-          </h2>
-
-          {story.questions?.map((q: any) => (
-            <div key={q.id} className="mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                <p className="font-medium flex-1">
-                  {q.question}
-                </p>
-
-                <button
-                  onClick={() =>
-                    handlePlayQuestionAudio(q.id, q.question)
-                  }
-                className="text-xl text-blue-600 dark:text-blue-400"
-                >
-                  {playingAudioId === q.id
-                    ? "🔊..."
-                    : "🔊"}
-                </button>
-
-                <button
-                  onClick={() =>
-                    recordingQuestionId === q.id
-                      ? stopRecording(q.id)
-                      : startRecording(q.id)
-                  }
-                  className="text-xl text-red-600 dark:text-red-400"
-                >
-                  {recordingQuestionId === q.id
-                    ? "⏹️"
-                    : "🎤"}
-                </button>
-              </div>
-
-              <textarea
-                className="w-full rounded-xl border border-input bg-background p-3 text-foreground"
-                value={answers[q.id] || ""}
-                onChange={(e) =>
-                  setAnswers((prev) => ({
-                    ...prev,
-                    [q.id]: e.target.value,
-                  }))
-                }
+          <div className="mt-5 flex min-h-[280px] items-center justify-center rounded-[2rem] bg-white/60 px-4 py-4 dark:bg-slate-800/40 sm:min-h-[420px]">
+            {scene?.imageUrl ? (
+              <img
+                src={resolveAssetUrl(scene.imageUrl)}
+                className="max-h-[52vh] max-w-full rounded-[1.5rem] object-contain shadow-soft"
+                alt={scene.title}
               />
-            </div>
-          ))}
+            ) : (
+              <div className="text-center text-sm text-muted-foreground">
+                {t("storyTextOnlyScene")}
+              </div>
+            )}
+          </div>
 
-          <button
-            disabled={answersSubmitted}
-            onClick={handleSubmitAnswers}
-            className="
-              bg-green-600
-              text-white
-              px-6
-              py-3
-              rounded-xl
-            "
-          >
-            {answersSubmitted
-              ? "Answers Submitted"
-              : "Submit Answers"}
-          </button>
-        </div>
+          <div className="mx-auto mt-6 max-w-4xl rounded-[2rem] bg-white/75 px-6 py-5 shadow-soft dark:bg-slate-800/50">
+            <p className="text-lg leading-9 text-slate-700 dark:text-slate-200 sm:text-xl">
+              {scene?.content}
+            </p>
+          </div>
+        </article>
+
+        {!hasAudio ? (
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={() => setCurrentSceneIndex((prev) => prev - 1)}
+              disabled={currentSceneIndex === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-card px-5 py-3 text-sm font-semibold text-card-foreground shadow-soft disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              {t("storyPreviousScene")}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCurrentSceneIndex((prev) => prev + 1)}
+              disabled={currentSceneIndex === story.scenes.length - 1}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-soft disabled:opacity-40"
+            >
+              {t("storyNextScene")}
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
       </div>
-    )}
-  </div>
-);
+
+      {showQuestions ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-border bg-card p-6 text-card-foreground shadow-2xl">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-3xl font-bold">{t("storyQuestionsTitle")}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t("storyQuestionsDescription")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQuestions(false)}
+                className="rounded-full bg-muted px-3 py-1 text-sm font-semibold text-muted-foreground"
+              >
+                {t("close")}
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {story.questions.map((question, index) => (
+                <div key={question.id} className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+                  <div className="mb-3 flex items-start gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                      {index + 1}
+                    </div>
+                    <p className="flex-1 text-base font-medium">{question.question}</p>
+                  </div>
+
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePlayQuestionAudio(question.id)}
+                      className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-2 text-sm font-semibold text-primary"
+                    >
+                      <Volume2 className="h-4 w-4" />
+                      {playingAudioId === question.id
+                        ? t("storyQuestionPlaying")
+                        : t("storyQuestionPlay")}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        recordingQuestionId === question.id
+                          ? stopRecording(question.id)
+                          : startRecording(question.id)
+                      }
+                      className="inline-flex items-center gap-2 rounded-full bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive"
+                    >
+                      <Mic className="h-4 w-4" />
+                      {recordingQuestionId === question.id
+                        ? t("storyQuestionStopRecording")
+                        : t("storyQuestionRecord")}
+                    </button>
+                  </div>
+
+                  <textarea
+                    className="min-h-[120px] w-full rounded-2xl border border-input bg-background p-3 text-foreground"
+                    value={answers[question.id] || ""}
+                    onChange={(event) =>
+                      setAnswers((prev) => ({
+                        ...prev,
+                        [question.id]: event.target.value,
+                      }))
+                    }
+                    placeholder={t("storyQuestionAnswerPlaceholder")}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">{t("storyQuestionsFooter")}</p>
+              <button
+                type="button"
+                disabled={answersSubmitted}
+                onClick={handleSubmitAnswers}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-600 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Trophy className="h-4 w-4" />
+                {answersSubmitted ? t("storyAnswersSubmitted") : t("storySubmitAnswers")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }

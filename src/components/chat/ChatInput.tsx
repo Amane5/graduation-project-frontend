@@ -1,9 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2, Mic, SendHorizonal, Square, X } from "lucide-react";
+import {
+  Camera,
+  Loader2,
+  Map,
+  Mic,
+  Palette,
+  SendHorizonal,
+  Sparkles,
+  Square,
+  X,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 interface ChatInputProps {
   onSend: (text: string, files: File[]) => void;
@@ -37,6 +48,29 @@ const ChatInput = ({
 
   const isDrawingUploadStep = mode === "drawing" && !drawingStarted;
   const isDrawingMessageStep = mode === "drawing" && drawingStarted;
+
+  const modeOptions = [
+    {
+      key: "normal" as const,
+      label: t("chatModeNormal"),
+      icon: Sparkles,
+      helper: t("chatModeNormalHelper"),
+    },
+    {
+      key: "journey" as const,
+      label: t("chatModeJourney"),
+      icon: Map,
+      helper: t("chatModeJourneyHelper"),
+    },
+    {
+      key: "drawing" as const,
+      label: t("chatModeDrawing"),
+      icon: Palette,
+      helper: drawingStarted
+        ? t("chatModeDrawingHelperContinue")
+        : t("chatModeDrawingHelperStart"),
+    },
+  ] as const;
 
   useEffect(() => {
     const textarea = taRef.current;
@@ -93,16 +127,48 @@ const ChatInput = ({
   return (
     <div className="sticky bottom-0 bg-gradient-to-t from-background via-background to-background/80 px-3 pb-4 pt-3 sm:px-6">
       <div className="mx-auto max-w-3xl">
-        {isDrawingUploadStep ? (
-          <div className="mb-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-            {t("chatUploadDrawingHelp")}
-            {files[0] ? (
-              <span className="mt-2 block font-medium text-primary">
-                {t("chatReadyToStart", { name: files[0].name })}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {modeOptions.map((option) => {
+            const Icon = option.icon;
+            const active = mode === option.key;
+
+            return (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => onModeChange?.(option.key)}
+                aria-pressed={active}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-all",
+                  active
+                    ? "border-primary/30 bg-primary text-primary-foreground shadow-soft"
+                    : "border-border/70 bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>{option.label}</span>
+              </button>
+            );
+          })}
+
+          <span className="ml-auto rounded-full bg-muted px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+            {t("chatTokenCount", { count: tokenBalance ?? 0 })}
+          </span>
+        </div>
+
+        <div className="mb-3 rounded-2xl border border-border/60 bg-card/75 px-4 py-3 text-sm text-foreground shadow-soft">
+          <p className="font-semibold">
+            {modeOptions.find((option) => option.key === mode)?.label}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {modeOptions.find((option) => option.key === mode)?.helper}
+          </p>
+          {isDrawingUploadStep ? (
+            <p className="mt-2 text-xs font-medium text-primary">
+              {t("chatUploadDrawingHelp")}
+            </p>
+          ) : null}
+        </div>
 
         {files.length > 0 ? (
           <div className="mb-3 flex flex-wrap gap-2">
@@ -165,32 +231,6 @@ const ChatInput = ({
           >
             <Camera className="h-5 w-5" />
           </button>
-
-          <div className="mb-2 flex gap-2">
-            <button
-              type="button"
-              onClick={() => onModeChange?.("normal")}
-              className={mode === "normal" ? "rounded bg-black px-3 py-1 text-white" : "px-3 py-1"}
-            >
-              {t("chatModeNormal")}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onModeChange?.("journey")}
-              className={mode === "journey" ? "rounded bg-black px-3 py-1 text-white" : "px-3 py-1"}
-            >
-              {t("chatModeJourney")}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onModeChange?.("drawing")}
-              className={mode === "drawing" ? "rounded bg-black px-3 py-1 text-white" : "px-3 py-1"}
-            >
-              {t("chatModeDrawing")}
-            </button>
-          </div>
 
           <textarea
             ref={taRef}

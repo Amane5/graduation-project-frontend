@@ -1,6 +1,7 @@
 import { Bot, FileText, ImageIcon, Music2, User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTranslation } from "react-i18next";
+
 import { cn } from "@/lib/utils";
 
 export type ChatAttachment = {
@@ -25,6 +26,7 @@ const resolveAssetUrl = (url?: string) => {
   if (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("http")) {
     return url;
   }
+
   return `${import.meta.env.VITE_API_URL}${url}`;
 };
 
@@ -87,6 +89,7 @@ const MessageBubble = ({
   attachments = [],
   isStreaming,
 }: MessageBubbleProps) => {
+  const { t } = useTranslation();
   const isUser = role === "user";
   const assistantImageUrl = resolveAssetUrl(imageUrl);
   const assistantAudioUrl = resolveAssetUrl(audioUrl);
@@ -101,7 +104,7 @@ const MessageBubble = ({
     >
       <div
         className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-soft",
           isUser ? "bg-secondary" : "bg-gradient-primary",
         )}
       >
@@ -110,11 +113,24 @@ const MessageBubble = ({
 
       <div
         className={cn(
-          "max-w-[80%] rounded-2xl border px-4 py-3 shadow-soft",
-          isUser ? "bg-gradient-primary text-white" : "bg-card text-card-foreground",
+          "max-w-[85%] rounded-3xl border px-4 py-3 shadow-soft sm:max-w-[80%]",
+          isUser
+            ? "border-primary/20 bg-gradient-primary text-white"
+            : "border-border/60 bg-card/95 text-card-foreground backdrop-blur-sm",
         )}
       >
-        {hasContent ? <ReactMarkdown>{content}</ReactMarkdown> : null}
+        {hasContent ? (
+          <div
+            className={cn(
+              "prose prose-sm max-w-none break-words leading-7",
+              isUser
+                ? "prose-invert prose-p:text-white prose-strong:text-white prose-headings:text-white prose-a:text-white"
+                : "dark:prose-invert",
+            )}
+          >
+            <ReactMarkdown>{content}</ReactMarkdown>
+          </div>
+        ) : null}
 
         {attachments.length > 0 ? (
           <div className={cn("space-y-3", hasContent ? "mt-3" : "")}>
@@ -130,8 +146,9 @@ const MessageBubble = ({
         {!isUser && assistantImageUrl ? (
           <img
             src={assistantImageUrl}
-            className="mt-3 max-w-xs rounded-xl border shadow"
-            alt="assistant attachment"
+            className="mt-3 max-w-xs rounded-2xl border shadow"
+            alt={t("chatAttachmentImage")}
+            loading="lazy"
           />
         ) : null}
 
