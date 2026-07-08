@@ -356,5 +356,6 @@
   "storyUpdatedSuccess": "تم تحديث القصة بنجاح.",
   "storyQuestionsReviewDescription": "حسّن الأسئلة قبل أن تصل إلى الطفل.",
   "storyQuestionsAlreadyGenerated": "تم إنشاء الأسئلة بالفعل",
-  "storyEditorDescription": "اطلب تغيير النبرة أو تبسيط الصياغة أو تقوية الجانب التعليمي."
+  "storyEditorDescription": "اطلب تغيير النبرة أو تبسيط الصياغة أو تقوية الجانب التعليمي.",
+  "storyQuestionsTitle":"اسئلة القصة"
 }

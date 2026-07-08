@@ -77,13 +77,13 @@ console.log(result.answers);
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-8">
       {result.status === "pending" && (
-        <Card className="mb-6 border-yellow-300 bg-yellow-50">
+        <Card className="mb-6 border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950/40">
           <CardContent className="py-6 text-center">
-            <h2 className="text-xl font-bold">
+            <h2 className="text-xl font-bold text-yellow-800 dark:text-yellow-300">
               ⏳ Challenge Still Running
             </h2>
 
-            <p className="text-muted-foreground mt-2">
+            <p className="mt-2 text-yellow-700 dark:text-yellow-200">
               You have completed the challenge successfully.
               <br />
               Final results will be available after all participants finish.

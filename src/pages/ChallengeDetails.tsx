@@ -148,9 +148,9 @@ const ChallengeDetails = () => {
           {/* Winner */}
 
           {winner && (
-            <Card className="mb-6 border-yellow-300 bg-yellow-50">
+            <Card className="mb-6 border border-yellow-500/40 bg-yellow-500/10 dark:bg-yellow-500/15">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
                   <Trophy className="w-5 h-5 text-yellow-500" />
                   Winner
                 </CardTitle>
@@ -305,13 +305,13 @@ const ChallengeDetails = () => {
                                   key={answer.childId}
                                   className={`rounded-lg border p-3 ${
                                     answer.isCorrect
-                                      ? "bg-green-50 border-green-300"
-                                      : "bg-red-50 border-red-300"
+                                      ? "bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-700"
+                                      : "bg-red-50 border-red-300 dark:bg-red-950/30 dark:border-red-700"
                                   }`}
                                 >
                                   <div className="flex items-center justify-between mb-2">
-                                    <span className="font-medium">
-                                      {answer.childName}'s Answer
+                                    <span className={`font-medium ${answer.isCorrect? "text-green-800 dark:text-green-300": "text-red-800 dark:text-red-300"}`}>
+                                    {answer.childName}'s Answer
                                     </span>
 
                                     <Badge
@@ -327,7 +327,7 @@ const ChallengeDetails = () => {
                                     </Badge>
                                   </div>
 
-                                  <p className="text-muted-foreground">
+                                  <p className="text-muted-foreground dark:text-muted-foreground">
                                     {answer.answer}
                                   </p>
                                 </div>
