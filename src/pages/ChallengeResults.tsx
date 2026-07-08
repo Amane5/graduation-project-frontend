@@ -22,9 +22,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getMyResults } from "@/lib/challenge";
+import { useTranslation } from "react-i18next";
 
 const ChallengeResults = () => {
   const navigate = useNavigate();
+
+  const {t} = useTranslation();
 
   const { id } = useParams();
 
@@ -52,23 +55,6 @@ const ChallengeResults = () => {
       </div>
     );
   }
-  
-    // if (result.status === "pending") {
-    // return (
-    //     <div className="min-h-screen flex items-center justify-center">
-    //     <div className="text-center">
-    //         <h2 className="text-xl font-bold">
-    //         Challenge not finished yet
-    //         </h2>
-    //         <p className="text-muted-foreground mt-2">
-    //         Waiting for all participants to complete.
-    //         </p>
-    //     </div>
-    //     </div>
-    // );
-    // }
-    console.log(result);
-console.log(result.answers);
   return (
     <div className="min-h-screen bg-background relative">
       <PlayfulBackground />
@@ -80,13 +66,13 @@ console.log(result.answers);
         <Card className="mb-6 border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950/40">
           <CardContent className="py-6 text-center">
             <h2 className="text-xl font-bold text-yellow-800 dark:text-yellow-300">
-              ⏳ Challenge Still Running
+              ⏳ {t("Challenge Still Running")}
             </h2>
 
             <p className="mt-2 text-yellow-700 dark:text-yellow-200">
-              You have completed the challenge successfully.
+              {t("You have completed the challenge successfully.")}
               <br />
-              Final results will be available after all participants finish.
+              {t("Final results will be available after all participants finish.")}
             </p>
           </CardContent>
         </Card>
@@ -99,11 +85,11 @@ console.log(result.answers);
                 <Trophy className="w-20 h-20 mx-auto text-yellow-500 mb-4" />
 
                 <h1 className="text-4xl font-bold mb-3">
-                  🎉 Congratulations!
+                  🎉 {t("Congratulations")}!
                 </h1>
 
                 <p className="text-lg text-muted-foreground">
-                  You are one of the winners!
+                  {t("You are one of the winners!")}
                 </p>
               </>
             ) : result.status !== "pending" ?(
@@ -111,11 +97,11 @@ console.log(result.answers);
                 <Star className="w-20 h-20 mx-auto text-primary mb-4" />
 
                 <h1 className="text-4xl font-bold mb-3">
-                  ⭐ Great Effort!
+                  ⭐ {t("Great Effort")}!
                 </h1>
 
                 <p className="text-lg text-muted-foreground">
-                  You completed the challenge.
+                  {t("You completed the challenge.")}
                 </p>
               </>
             ) : (
@@ -123,24 +109,24 @@ console.log(result.answers);
               <Star className="w-20 h-20 mx-auto text-primary mb-4" />
 
               <h1 className="text-4xl font-bold mb-3">
-                ✅ Challenge Completed
+                ✅ {t("Challenge Completed")}
               </h1>
 
               <p className="text-lg text-muted-foreground">
-                Your answers have been submitted successfully.
+                {t("Your answers have been submitted successfully.")}
               </p>
             </>
             )}
 
             <div className="mt-6 text-2xl font-bold">
-              Score: {result.totalScore}
+              {t("Score")}: {result.totalScore}
             </div>
 
             {result.status !== "pending" && !result.isWinner &&
               result.winners?.length > 0 && (
                 <div className="mt-4">
                   <p className="font-semibold">
-                    Winners
+                    {t("Winners")}
                   </p>
 
                   <p className="text-muted-foreground">
@@ -159,7 +145,7 @@ console.log(result.answers);
         <Card className="shadow-soft">
           <CardHeader>
             <CardTitle>
-              Answers Review
+             {t("Answers Review")}
             </CardTitle>
           </CardHeader>
 
@@ -190,14 +176,14 @@ console.log(result.answers);
                     <div className="space-y-2 text-sm">
                       <p>
                         <strong>
-                          Your Answer:
+                          {t("Your Answer")}:
                         </strong>{" "}
                         {answer.answer}
                       </p>
 
                       <p>
                         <strong>
-                          Expected Answer:
+                          {t("ExpectedAnswer")}:
                         </strong>{" "}
                         {
                           answer.question
@@ -207,7 +193,7 @@ console.log(result.answers);
 
                       <p>
                         <strong>
-                          Points:
+                          {t("Points")}:
                         </strong>{" "}
                         {answer.earnedPoints}
                         /
@@ -231,7 +217,7 @@ console.log(result.answers);
               navigate("/my-challenges")
             }
           >
-            Back to Challenges
+            {t("Back to Challenges")}
           </Button>
         </div>
       </div>

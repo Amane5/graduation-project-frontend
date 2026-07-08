@@ -22,10 +22,11 @@ import {
   BookOpen,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/date";
+import { useTranslation } from "react-i18next";
 
 const ActiveChallenges = () => {
   const navigate = useNavigate();
-
+  const {t} = useTranslation()
   const { data, isLoading } =
     useQuery({
       queryKey: ["activeChallenges"],
@@ -51,11 +52,11 @@ const ActiveChallenges = () => {
           <div className="mb-8">
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Trophy className="w-8 h-8 text-primary" />
-              My Challenges
+              {t("My Challenges")}
             </h1>
 
             <p className="text-muted-foreground mt-2">
-              Complete challenges and earn points
+              {t("Complete challenges and earn points")}
             </p>
           </div>
 
@@ -65,11 +66,11 @@ const ActiveChallenges = () => {
                 <Trophy className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
 
                 <h3 className="text-xl font-semibold">
-                  No Active Challenges
+                  {t("No Active Challenges")}
                 </h3>
 
                 <p className="text-muted-foreground mt-2">
-                  You don't have any active challenges right now.
+                  {t("You don't have any active challenges right now.")}
                 </p>
               </CardContent>
             </Card>
@@ -79,7 +80,7 @@ const ActiveChallenges = () => {
                 (challenge: any) => {
                     const isCompleted = challenge.participants?.[0]?.completedAt;
                     return (
-<Card
+                    <Card
                     key={challenge.id}
                     className="hover:shadow-lg transition-all"
                   >
@@ -106,7 +107,7 @@ const ActiveChallenges = () => {
                                 .questions
                                 ?.length
                             }{" "}
-                            Questions
+                            {t("Questions")}
                           </span>
                         </div>
 
@@ -114,7 +115,7 @@ const ActiveChallenges = () => {
                           <Calendar className="w-4 h-4" />
 
                           <span>
-                            Start:{" "}
+                            {t("StartDate")}:{" "}
                             {formatDateTime(
                               challenge.startAt
                             )}
@@ -125,7 +126,7 @@ const ActiveChallenges = () => {
                           <Calendar className="w-4 h-4" />
 
                           <span>
-                            End:{" "}
+                            {t("EndDate")}:{" "}
                             {formatDateTime(
                               challenge.endAt
                             )}
@@ -134,31 +135,30 @@ const ActiveChallenges = () => {
                       </div>
 
                       {isCompleted ? (
-  <Button
-    className="w-full"
-    variant="secondary"
-    onClick={() =>
-      navigate(`/challenge/${challenge.id}/results`)
-    }
-  >
-    <Trophy className="w-4 h-4 mr-2" />
-    View Results
-  </Button>
-) : (
-  <Button
-    className="w-full"
-    onClick={() =>
-      navigate(`/challenge/${challenge.id}/play`)
-    }
-  >
-    <PlayCircle className="w-4 h-4 mr-2" />
-    Start Challenge
-  </Button>
-)}
+                        <Button
+                          className="w-full"
+                          variant="secondary"
+                          onClick={() =>
+                            navigate(`/challenge/${challenge.id}/results`)
+                          }
+                        >
+                          <Trophy className="w-4 h-4 mr-2" />
+                          {t("View Results")}
+                        </Button>
+                      ) : (
+                        <Button
+                          className="w-full"
+                          onClick={() =>
+                            navigate(`/challenge/${challenge.id}/play`)
+                          }
+                        >
+                          <PlayCircle className="w-4 h-4 mr-2" />
+                          {t("Start Challenge")}
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                     )
-                  
 }
               )}
             </div>

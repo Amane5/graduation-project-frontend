@@ -443,5 +443,31 @@
   "Create a fun educational challenge for your children.":"انشئ تحديًا تعليميًا ممتعًا لأطفالك.",
   "Challenge description...":"وصف التحدي...",
   "Space Challenge":"تحدي الفضاء",
-  "Question":"السؤال"
+  "Question":"السؤال",
+
+  "My Challenges":"تحدياتي",
+  "Complete challenges and earn points":"",
+  "No Active Challenges":"لا توجد تحديات نشطة",
+  "You don't have any active challenges right now.":"لا توجد تحديات نشطة في الوقت الحالي.",
+  "View Results":"عرض النتائج",
+  "Start Challenge":"بدء التحدي",
+
+  "Challenge Still Running":"التحدي لا يزال مستمرًا",
+  "This challenge is still running. You can view the results after it ends.":"لا يزال هذا التحدي مستمرًا. يمكنك عرض النتائج بعد انتهائه.",
+  "Challenge Ended":"انتهى التحدي",
+  "This challenge has ended. You can view the results below.":"انتهى هذا التحدي. يمكنك عرض النتائج أدناه.",
+  "You have completed the challenge successfully.":"لقد أكملت التحدي بنجاح.",
+  "Your answers have been submitted successfully.":"تم إرسال إجاباتك بنجاح.",
+  "Winners":"الفائزون",
+  "Answers Review":"مراجعة الإجابات",
+  "Your Answer":"إجابتك",
+  "Points":"النقاط",
+  "Back to Challenges":"العودة إلى التحديات",
+  "Final results will be available after all participants finish.":"ستكون النتائج النهائية متاحة بعد أن ينتهي جميع المشاركين.",
+  "Challenge Results":"نتائج التحدي",
+  "Congratulations":"تهانينا",
+  "You are one of the winners!":"انت واحد من الفائزين!",
+  "Great Effort":"جهد رائع",
+  "You completed the challenge.":"لقد أكملت التحدي.",
+  "Challenge Completed":"تم إكمال التحدي"
 }
