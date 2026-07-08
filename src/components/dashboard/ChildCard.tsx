@@ -1,6 +1,7 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { Child, calcAge } from "@/lib/children";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   child: Child;
@@ -15,7 +16,7 @@ interface Props {
 
 const ChildCard = ({ child, onEdit, onDelete, onReports, delay = 0 }: Props) => {
   const age = calcAge(child.birthdate);
-
+  const {t} = useTranslation();
   return (
     <div
       className="group rounded-3xl border border-border/50 bg-card p-6 shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-card animate-fade-slide-up opacity-0"
@@ -33,9 +34,9 @@ const ChildCard = ({ child, onEdit, onDelete, onReports, delay = 0 }: Props) => 
         <h3 className="text-lg font-bold text-foreground">
           {child.firstName} {child.lastName}
         </h3>
-        <div className="mb-1 text-sm text-muted-foreground">
+        {/* <div className="mb-1 text-sm text-muted-foreground">
           {age !== null ? `${age} ${age === 1 ? "year" : "years"} old` : "N/A"}
-        </div>
+        </div> */}
         <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
           @{child.username}
         </div>
@@ -47,7 +48,7 @@ const ChildCard = ({ child, onEdit, onDelete, onReports, delay = 0 }: Props) => 
             aria-label={`Edit ${child.firstName} ${child.lastName}`}
           >
             <Pencil className="w-4 h-4" />
-            Edit
+            {t("Edit")}
           </button>
           <button
             onClick={onDelete}
@@ -55,13 +56,13 @@ const ChildCard = ({ child, onEdit, onDelete, onReports, delay = 0 }: Props) => 
             aria-label={`Delete ${child.firstName} ${child.lastName}`}
           >
             <Trash2 className="w-4 h-4" />
-            Delete
+            {t("Delete")}
           </button>
           <button
             onClick={onReports}
             className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border-2 border-primary/20 text-sm font-semibold text-primary transition-all hover:bg-primary/10"
           >
-            Reports
+            {t("Reports")}
           </button>
         </div>
       </div>

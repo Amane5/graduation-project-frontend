@@ -27,6 +27,7 @@ import {
 } from "@/lib/challenge";
 import { formatDateTime } from "@/lib/date";
 import DeleteChildModal from "@/components/dashboard/DeleteChildModal";
+import { useTranslation } from "react-i18next";
 
 interface Challenge {
   id: number;
@@ -52,6 +53,8 @@ const Challenges = () => {
 
   const [error, setError] = useState(false);
 
+    const { t } = useTranslation();
+  
   const loadChallenges = async () => {
     try {
       setLoading(true);
@@ -130,14 +133,12 @@ const Challenges = () => {
 
           <div className="mb-6 animate-fade-slide-up">
             <h1 className="text-3xl sm:text-4xl font-bold flex items-center gap-3">
-              Challenges
+              {t("Challenges")}
               <Trophy className="w-8 h-8 text-yellow-500" />
             </h1>
 
             <p className="text-muted-foreground mt-2">
-              Create educational challenges
-              and track your children's
-              progress.
+              {t("ChallengesDescription")}
             </p>
           </div>
 
@@ -148,7 +149,7 @@ const Challenges = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 
               <Input
-                placeholder="Search challenges..."
+                placeholder={t("SearchChallenges")}
                 className="pl-10"
                 value={search}
                 onChange={(e) =>
@@ -255,7 +256,7 @@ const Challenges = () => {
                                 .participants
                                 ?.length
                             }{" "}
-                            Participants
+                            {t("Participants")}
                           </span>
                         </div>
 
@@ -267,7 +268,7 @@ const Challenges = () => {
                               challenge
                                 .questions?.length
                             }{" "}
-                            Questions
+                            {t("challengeQuestions")}
                           </span>
                         </div>
 
@@ -275,7 +276,7 @@ const Challenges = () => {
                           <Calendar className="w-4 h-4 text-primary" />
 
                           <span>
-                            Start: {" "}
+                            {t("Start")} {" "}
                             {formatDateTime(
                               challenge.startAt
                             )}
@@ -286,8 +287,7 @@ const Challenges = () => {
                         <Calendar className="w-4 h-4 text-red-500" />
 
                         <span>
-                            End:
-                            {" "}
+                            {t("End")} {" "}
                             {formatDateTime(
                             challenge.endAt
                             )}

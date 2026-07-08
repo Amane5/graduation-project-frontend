@@ -45,6 +45,7 @@ import {
   updateChallenge,
 } from "@/lib/challenge";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 const formSchema = z
   .object({
@@ -104,6 +105,8 @@ const toDateTimeLocal = (
 const EditChallenge = () => {
   const navigate = useNavigate();
     const { id } = useParams();
+    const { t } = useTranslation();
+
 
     const {
     data: challengeRes,
@@ -423,7 +426,7 @@ if (isLoading) {
         <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold">
-              Edit Challenge
+              {t("EditChallenge")}
             </h1>
             {
             cannotEdit && (
@@ -431,15 +434,16 @@ if (isLoading) {
                 <CardContent className="py-4">
                     <p className="text-red-500 font-medium">
                     {isActive
-                    ? "This challenge is currently active and cannot be edited."
-                    : "This challenge has already ended and cannot be edited."}
+                    ? t("cannotEditActiveChallenge")
+                    : t("cannotEditFinishedChallenge")
+                    }
                     </p>
                 </CardContent>
                 </Card>
             )
             }
             <p className="text-muted-foreground mt-2">
-              Update a challenge with new informations.
+              {t("updateChallengeDescription")}
             </p>
           </div>
 
@@ -448,7 +452,7 @@ if (isLoading) {
               <Card className="shadow-soft">
                 <CardHeader>
                   <CardTitle>
-                    Challenge Information
+                    {t("ChallengeInformation")}
                   </CardTitle>
                 </CardHeader>
 
@@ -460,12 +464,12 @@ if (isLoading) {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          Title
+                          {t("ChallengeTitle")}
                         </FormLabel>
 
                         <FormControl>
                           <Input
-                            placeholder="Space Challenge"
+                            placeholder={t("ChallengeTitlePlaceholder")}
                             {...field}
                           />
                         </FormControl>
@@ -481,13 +485,13 @@ if (isLoading) {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          Description
+                          {t("ChallengeDescription")}
                         </FormLabel>
 
                         <FormControl>
                           <Textarea
                           disabled={cannotEdit}
-                            placeholder="Challenge description..."
+                            placeholder={t("ChallengeDescriptionPlaceholder")}
                             {...field}
                           />
                         </FormControl>
@@ -503,7 +507,7 @@ if (isLoading) {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="w-5 h-5" />
-                    Participants
+                    {t("Participants")}
                   </CardTitle>
                 </CardHeader>
 
@@ -622,7 +626,7 @@ if (isLoading) {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="w-5 h-5" />
-                    Schedule
+                    {t("Schedule")}
                   </CardTitle>
                 </CardHeader>
 
@@ -636,7 +640,7 @@ if (isLoading) {
                     }) => (
                       <FormItem>
                         <FormLabel>
-                          Start Date
+                          {t("StartDate")}
                         </FormLabel>
 
                         <FormControl>
@@ -660,7 +664,7 @@ if (isLoading) {
                     }) => (
                       <FormItem>
                         <FormLabel>
-                          End Date
+                          {t("EndDate")}
                         </FormLabel>
 
                         <FormControl>
@@ -681,7 +685,7 @@ if (isLoading) {
                 <CardHeader>
                     <div className="flex items-center justify-between">
                     <CardTitle>
-                        Questions
+                        {t("Questions")}
                     </CardTitle>
 
                     <div className="flex gap-2">
@@ -694,7 +698,7 @@ if (isLoading) {
                         }
                         >
                         <Sparkles className="w-4 h-4 mr-2" />
-                        AI Questions
+                        {t("AIQuestions")}
                         </Button>
 
                         <Button
@@ -702,7 +706,7 @@ if (isLoading) {
                         type="button"
                         onClick={addQuestion}
                         >
-                        Add Question
+                        {t("AddQuestion")}
                         </Button>
                     </div>
                     </div>
@@ -718,7 +722,7 @@ if (isLoading) {
                         <CardContent className="pt-6 space-y-4">
                             <div className="flex justify-between items-center">
                             <h3 className="font-semibold">
-                                Question {index + 1}
+                                {t("Question")} {index + 1}
                             </h3>
 
                             <Button
@@ -796,7 +800,7 @@ if (isLoading) {
                             }
                             >
                             <Sparkles className="w-4 h-4 mr-2" />
-                            AI Answer
+                            {t("AIAnswer")}
                             </Button>
                         </CardContent>
                         </Card>
@@ -812,8 +816,9 @@ if (isLoading) {
                         disabled={loading || cannotEdit}
                     >
                         {loading
-                        ? "Saving..."
-                        : "Save Changes"}
+                        ? t("Saving...")
+                        : t("SaveChanges")
+                        }
                     </Button>
                </div>
             </form>

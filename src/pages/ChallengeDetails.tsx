@@ -30,12 +30,14 @@ import {
   getWinner,
 } from "@/lib/challenge";
 import { formatDateTime } from "@/lib/date";
+import { useTranslation } from "react-i18next";
 
 const ChallengeDetails = () => {
   const { id } = useParams();
 
   const navigate = useNavigate();
 
+  const {t} = useTranslation();
   const { data: challengeRes, isLoading } =
     useQuery({
       queryKey: ["challenge", id],
@@ -105,14 +107,14 @@ const ChallengeDetails = () => {
                     }
                   >
                     <Pencil className="w-4 h-4 mr-2" />
-                    Edit
+                    {t("Edit")}
                   </Button>
 
                   <Button
                     variant="destructive"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
+                    {t("Delete")}
                   </Button>
                 </div>
               </div>
@@ -122,7 +124,7 @@ const ChallengeDetails = () => {
                   <Calendar className="w-4 h-4 text-primary" />
 
                   <span>
-                    Start:
+                    {t("Start")}
                     {" "}
                     {formatDateTime(
                       challenge.startAt
@@ -134,7 +136,7 @@ const ChallengeDetails = () => {
                   <Calendar className="w-4 h-4 text-red-500" />
 
                   <span>
-                    End:
+                    {t("End")}
                     {" "}
                     {formatDateTime(
                       challenge.endAt
@@ -152,14 +154,14 @@ const ChallengeDetails = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
                   <Trophy className="w-5 h-5 text-yellow-500" />
-                  Winner
+                  {t("Winner")}
                 </CardTitle>
               </CardHeader>
 
               <CardContent>
                 <div className="space-y-3">
                   <p className="font-medium">
-                    Score:
+                    {t("Score")}:
                     {" "}
                     {winner.score}
                   </p>
@@ -188,7 +190,7 @@ const ChallengeDetails = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  Participants
+                  {t("Participants")}
                 </CardTitle>
               </CardHeader>
 
@@ -216,7 +218,7 @@ const ChallengeDetails = () => {
                         </p>
 
                         <p className="text-sm text-muted-foreground">
-                          Score:
+                          {t("Score")}:
                           {" "}
                           {
                             participant.totalScore
@@ -247,7 +249,7 @@ const ChallengeDetails = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileQuestion className="w-5 h-5" />
-                  Questions
+                  {t("Questions")}
                 </CardTitle>
               </CardHeader>
 
@@ -263,7 +265,7 @@ const ChallengeDetails = () => {
                       <CardContent className="pt-4">
                         <div className="space-y-3">
                           <h3 className="font-semibold">
-                            Question{" "}
+                            {t("Question")}{" "}
                             {index + 1}
                           </h3>
 
@@ -274,7 +276,7 @@ const ChallengeDetails = () => {
                           </p>
 
                           <div className="text-sm text-muted-foreground">
-                            Expected Answer:
+                            {t("ExpectedAnswer")}:
                           </div>
 
                           <div className="bg-muted p-3 rounded-lg">
@@ -297,7 +299,7 @@ const ChallengeDetails = () => {
                           {question.answers?.length > 0 && (
                             <div className="mt-5 space-y-3">
                               <h4 className="font-semibold text-sm">
-                                Children's Answers
+                                {t("ChildrensAnswers")}
                               </h4>
 
                               {question.answers.map((answer: any) => (
@@ -311,7 +313,7 @@ const ChallengeDetails = () => {
                                 >
                                   <div className="flex items-center justify-between mb-2">
                                     <span className={`font-medium ${answer.isCorrect? "text-green-800 dark:text-green-300": "text-red-800 dark:text-red-300"}`}>
-                                    {answer.childName}'s Answer
+                                    {answer.childName}{t("sAnswer")}
                                     </span>
 
                                     <Badge
