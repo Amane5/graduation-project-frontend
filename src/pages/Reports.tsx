@@ -23,6 +23,7 @@ import {
   Target,
   FileText,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type Report = {
   id: number;
@@ -71,6 +72,8 @@ export default function Reports()  {
   const { childId } = useParams();
 
   const location = useLocation();
+
+  const {t} = useTranslation()
 
   const childName = location.state?.childName;
 
@@ -164,7 +167,7 @@ console.log(res);
     <div className="max-w-6xl mx-auto px-4 py-8">
 
       <h1 className="text-4xl font-bold mb-6">
-        {childName} Reports 📊
+        {childName} {t("Reports")} 📊
       </h1>
 
     <div className="flex gap-2 mb-6">
@@ -176,7 +179,7 @@ console.log(res);
           : "bg-card"
       }`}
     >
-      Story
+      {t("Story")}
     </button>
 
     <button
@@ -187,7 +190,7 @@ console.log(res);
           : "bg-card"
       }`}
     >
-      Chat
+      {t("Chat")}
     </button>
   </div>
    
@@ -201,7 +204,7 @@ console.log(res);
       <div className="bg-card rounded-2xl p-5 border">
         <BookOpen className="mb-2" />
         <p className="text-sm text-muted-foreground">
-            Stories
+            {t("Stories")}
         </p>
         <h2 className="text-3xl font-bold">
             {stats.storiesCount}
@@ -211,7 +214,7 @@ console.log(res);
       <div className="bg-card rounded-2xl p-5 border">
         <Trophy className="mb-2" />
         <p className="text-sm text-muted-foreground">
-            Average Score
+            {t("Average Score")}
         </p>
         <h2 className="text-3xl font-bold">
             {stats.avgScore}%
@@ -221,7 +224,7 @@ console.log(res);
       <div className="bg-card rounded-2xl p-5 border">
         <Target className="mb-2" />
         <p className="text-sm text-muted-foreground">
-            Goal Achievement
+            {t("Goal Achievement")}
         </p>
         <h2 className="text-3xl font-bold">
             {stats.avgGoal}%
@@ -249,7 +252,7 @@ console.log(res);
             <div className="text-right">
 
                 <p>
-                Score:
+                {t("Score")}
                 {" "}
                 {report.overallScore}%
                 </p>
@@ -269,7 +272,7 @@ console.log(res);
                     )
                 }
                 >
-                View Report
+                {t("View Report")}
                 </Button>
 
             </div>
@@ -286,17 +289,17 @@ console.log(res);
         <div className="grid md:grid-cols-3 gap-4 mb-6">
     
       <div className="bg-card border rounded-2xl p-5">
-        <p className="text-sm text-muted-foreground">Curiosity</p>
+        <p className="text-sm text-muted-foreground">{t("Curiosity")}</p>
         <h2 className="text-3xl font-bold">{chatStats.curiosity}/5</h2>
       </div>
 
       <div className="bg-card border rounded-2xl p-5">
-        <p className="text-sm text-muted-foreground">Creativity</p>
+        <p className="text-sm text-muted-foreground">{t("Creativity")}</p>
         <h2 className="text-3xl font-bold">{chatStats.creativity}/5</h2>
       </div>
 
       <div className="bg-card border rounded-2xl p-5">
-        <p className="text-sm text-muted-foreground">Analytical</p>
+        <p className="text-sm text-muted-foreground">{t("Analytical")}</p>
         <h2 className="text-3xl font-bold">{chatStats.analytical}/5</h2>
       </div>
     </div>
@@ -304,7 +307,7 @@ console.log(res);
 
       {/* Top Interests */}
     <div className="bg-card border rounded-2xl p-5">
-      <h3 className="font-bold mb-3">Top Interests</h3>
+      <h3 className="font-bold mb-3">{t("Top Interests")}</h3>
 
       <div className="flex flex-wrap gap-2">
         {chatStats.topCategories.map((cat) => (
@@ -321,7 +324,7 @@ console.log(res);
       {/* Top Subcategories */}
       <div className="bg-card border rounded-2xl p-5">
         <h3 className="font-bold mb-3">
-          Top Subcategories
+          {t("Top Subcategories")}
         </h3>
 
         <div className="flex flex-wrap gap-2">
@@ -341,19 +344,20 @@ console.log(res);
       {/* emotional */}
       <div className="bg-card border rounded-2xl p-5">
           <h3 className="font-bold mb-3">
-            Emotional Summary
+            {t("Emotional Summary")}
           </h3>
 
           <p className="text-muted-foreground">
             {chatReport?.emotionalSummary ||
-              "Not enough emotional signals yet"}
+              t("Not enough emotional signals yet")
+            }
           </p>
       </div>
 
 
       {chatStats.recommendations.length > 0 && (
       <div className="bg-card border rounded-2xl p-5">
-        <h3 className="font-bold mb-3">Recommendations</h3>
+        <h3 className="font-bold mb-3">{t("Recommendations")}</h3>
 
         <div className="flex flex-wrap gap-2">
           {chatStats.recommendations.map((rec) => (

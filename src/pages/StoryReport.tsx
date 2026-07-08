@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   MessageSquare,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 type Evaluation = {
   id: number;
   score: number;
@@ -41,7 +42,7 @@ type StoryReportResponse = {
   evaluations: Evaluation[];
 };
 export default function StoryReport () {
-     const { storyId } = useParams();
+  const { storyId } = useParams();
 
   const location = useLocation();
 
@@ -52,6 +53,8 @@ export default function StoryReport () {
   const [loading, setLoading] = useState(true);
 
   const [data, setData] = useState<StoryReportResponse | null>(null);
+
+  const {t} = useTranslation()
 
   useEffect(() => {
     const load = async () => {
@@ -103,7 +106,7 @@ const evaluations =
 
         {educationalGoal && (
         <p className="text-muted-foreground mt-2">
-        Goal: {educationalGoal}
+        {t("Goal")}: {educationalGoal}
         </p>
         )}
 
@@ -115,7 +118,7 @@ const evaluations =
         <Trophy className="mb-3 text-yellow-500" />
 
         <p className="text-muted-foreground">
-        Overall Score
+        {t("Overall Score")}
         </p>
 
         <h2 className="text-4xl font-bold">
@@ -138,7 +141,7 @@ const evaluations =
         <Target className="mb-3 text-green-500" />
 
         <p className="text-muted-foreground">
-        Goal Achievement
+        {t("Goal Achievement")}
         </p>
 
         <h2 className="text-4xl font-bold">
@@ -160,7 +163,7 @@ const evaluations =
         <div className="bg-card border rounded-2xl p-6 mb-8">
 
         <h2 className="font-bold text-xl mb-3">
-        Summary
+        {t("Summary")}
         </h2>
 
         <p>
@@ -174,7 +177,7 @@ const evaluations =
 
         <CheckCircle className="text-green-500" />
 
-        Strengths
+        {t("Strengths")}
 
         </h2>
 
@@ -214,7 +217,7 @@ const evaluations =
 
         <AlertTriangle className="text-orange-500" />
 
-        Improvements
+        {t("Improvements")}
 
         </h2>
 
@@ -249,7 +252,7 @@ const evaluations =
 
         </div>
         <h2 className="text-2xl font-bold mb-4">
-        Questions Evaluation
+        {t("Questions Evaluation")}
         </h2>
 
         <div className="space-y-4">
@@ -297,7 +300,7 @@ const evaluations =
         <div className="mb-4">
 
         <p className="text-sm text-muted-foreground mb-1">
-        Child Answer
+        {t("Child Answer")}
         </p>
 
         <p className="font-medium">
@@ -315,7 +318,7 @@ const evaluations =
         <MessageSquare className="w-4 h-4" />
 
         <span className="font-medium">
-        AI Feedback
+        {t("AI Feedback")}
         </span>
 
         </div>

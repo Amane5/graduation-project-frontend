@@ -42,6 +42,7 @@ import {
   recommendAnswer,
   recommendQuestions,
 } from "@/lib/challenge";
+import { useTranslation } from "react-i18next";
 
 const formSchema = z
   .object({
@@ -80,9 +81,8 @@ interface Child {
 
 const CreateChallenge = () => {
   const navigate = useNavigate();
-
-  const [children, setChildren] =
-    useState<Child[]>([]);
+  const {t} = useTranslation()
+  const [children, setChildren] = useState<Child[]>([]);
 
   const [
     participantIds,
@@ -333,12 +333,11 @@ console.log(res.data.expectedAnswer);
         <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold">
-              Create Challenge
+              {t("Create Challenge")}
             </h1>
 
             <p className="text-muted-foreground mt-2">
-              Create a fun educational
-              challenge for your children.
+              {t("Create a fun educational challenge for your children.")}
             </p>
           </div>
 
@@ -347,7 +346,7 @@ console.log(res.data.expectedAnswer);
               <Card className="shadow-soft">
                 <CardHeader>
                   <CardTitle>
-                    Challenge Information
+                    {t("Challenge Information")}
                   </CardTitle>
                 </CardHeader>
 
@@ -358,12 +357,12 @@ console.log(res.data.expectedAnswer);
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          Title
+                          {t("ChallengeTitle")}
                         </FormLabel>
 
                         <FormControl>
                           <Input
-                            placeholder="Space Challenge"
+                            placeholder={t("Space Challenge")}
                             {...field}
                           />
                         </FormControl>
@@ -379,12 +378,12 @@ console.log(res.data.expectedAnswer);
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          Description
+                          {t("ChallengeDescription")}
                         </FormLabel>
 
                         <FormControl>
                           <Textarea
-                            placeholder="Challenge description..."
+                            placeholder={t("Challenge description...")}
                             {...field}
                           />
                         </FormControl>
@@ -400,7 +399,7 @@ console.log(res.data.expectedAnswer);
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="w-5 h-5" />
-                    Participants
+                    {t("Participants")}
                   </CardTitle>
                 </CardHeader>
 
@@ -518,7 +517,7 @@ console.log(res.data.expectedAnswer);
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="w-5 h-5" />
-                    Schedule
+                    {t("Schedule")}
                   </CardTitle>
                 </CardHeader>
 
@@ -531,7 +530,7 @@ console.log(res.data.expectedAnswer);
                     }) => (
                       <FormItem>
                         <FormLabel>
-                          Start Date
+                          {t("StartDate")}
                         </FormLabel>
 
                         <FormControl>
@@ -554,7 +553,7 @@ console.log(res.data.expectedAnswer);
                     }) => (
                       <FormItem>
                         <FormLabel>
-                          End Date
+                          {t("EndDate")}
                         </FormLabel>
 
                         <FormControl>
@@ -575,7 +574,7 @@ console.log(res.data.expectedAnswer);
                 <CardHeader>
                     <div className="flex items-center justify-between">
                     <CardTitle>
-                        Questions
+                        {t("Questions")}
                     </CardTitle>
 
                     <div className="flex gap-2">
@@ -587,14 +586,14 @@ console.log(res.data.expectedAnswer);
                         }
                         >
                         <Sparkles className="w-4 h-4 mr-2" />
-                        AI Questions
+                        {t("AIQuestions")}
                         </Button>
 
                         <Button
                         type="button"
                         onClick={addQuestion}
                         >
-                        Add Question
+                        {t("AddQuestion")}
                         </Button>
                     </div>
                     </div>
@@ -610,7 +609,7 @@ console.log(res.data.expectedAnswer);
                         <CardContent className="pt-6 space-y-4">
                             <div className="flex justify-between items-center">
                             <h3 className="font-semibold">
-                                Question {index + 1}
+                                {t("Question")} {index + 1}
                             </h3>
 
                             <Button
@@ -628,7 +627,7 @@ console.log(res.data.expectedAnswer);
                             </div>
 
                             <Input
-                            placeholder="Question"
+                            placeholder={t("Question")}
                             value={
                                 question.question
                             }
@@ -642,7 +641,7 @@ console.log(res.data.expectedAnswer);
                             />
 
                             <Textarea
-                            placeholder="Expected Answer"
+                            placeholder={t("ExpectedAnswer")}
                             value={
                                 question.expectedAnswer
                             }
@@ -676,10 +675,7 @@ console.log(res.data.expectedAnswer);
                             type="button"
                             variant="secondary"
                             onClick={() =>{
-                              console.log(question)
-
-    console.log(question.question)
-    handleGenerateAnswer(
+                              handleGenerateAnswer(
                                 question.question,
                                 index
                                 )
@@ -688,7 +684,7 @@ console.log(res.data.expectedAnswer);
                             }
                             >
                             <Sparkles className="w-4 h-4 mr-2" />
-                            AI Answer
+                            {t("AIAnswer")}
                             </Button>
                         </CardContent>
                         </Card>
@@ -704,8 +700,8 @@ console.log(res.data.expectedAnswer);
                         disabled={loading}
                     >
                         {loading
-                        ? "Creating..."
-                        : "Create Challenge"}
+                        ? t("Creating...")
+                        : t("Create Challenge")}
                     </Button>
                </div>
             </form>

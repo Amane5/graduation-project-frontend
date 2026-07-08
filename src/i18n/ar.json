@@ -410,5 +410,38 @@
   "Participants":"المشاركين",
   "Winner":"الفائز",
 
-  "Reports":"التقارير"
+  "Reports":"تقارير",
+
+  "Story":"القصة",
+  "Goal Achievement":"تحقيق الهدف",
+  "Top Interests":"أهم الاهتمامات",
+  "Top Subcategories":"أهم الفئات الفرعية",
+  "Emotional Summary":"الملخص العاطفي",
+  "Recommendations":"التوصيات",
+  "Not enough emotional signals yet":"لا توجد إشارات عاطفية كافية بعد",
+  "Chat":"الدردشة",
+  "Stories":"القصص",
+  "Average Score":"المعدل العام للنتيجة",
+  "View Report":"عرض التقرير",
+  "Curiosity":"الفضول",
+  "Analytical":"التحليل",
+  "Creativity":"الابداع",
+
+  "Goal":"الهدف",
+  "Overall Score":"النتيجة العامة",
+  "Summary":"الملخص",
+  "Goal Achievement":"تحقيق الهدف",
+  "Strengths":"نقاط القوة",
+  "Improvements":"التحسينات",
+  "Questions Evaluation":"تقييم الاسئلة",
+  "Child Answer":"اجابة الطفل",
+  "AI Feedback":"ملاحظات الذكاء الاصطناعي",
+
+  "Creating...":"يتم الانشاء",
+  "Create Challenge":"انشاء التحدي",
+  "Challenge Information":"معلومات التحدي",
+  "Create a fun educational challenge for your children.":"انشئ تحديًا تعليميًا ممتعًا لأطفالك.",
+  "Challenge description...":"وصف التحدي...",
+  "Space Challenge":"تحدي الفضاء",
+  "Question":"السؤال"
 }
