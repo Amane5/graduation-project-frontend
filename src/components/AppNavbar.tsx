@@ -68,7 +68,7 @@ const AppNavbar = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-40 animate-nav-slide-down">
+      <header data-app-navbar="true" className="sticky top-0 z-40 animate-nav-slide-down">
         <div className="absolute inset-x-0 top-0 h-16 overflow-hidden pointer-events-none -z-10">
           <Cloud
             className="absolute -top-2 left-[12%] h-10 w-10 animate-float text-primary/20"

@@ -37,7 +37,10 @@ const ChildNavbar = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-border/50 bg-background/85 backdrop-blur-xl">
+      <header
+        data-app-navbar="true"
+        className="sticky top-0 z-40 border-b border-border/50 bg-background/85 backdrop-blur-xl"
+      >
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link to="/chat" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground shadow-soft">

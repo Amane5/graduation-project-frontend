@@ -122,6 +122,7 @@ const Chat = () => {
   const [drawingLoading, setDrawingLoading] = useState(false);
   const [drawingFinished, setDrawingFinished] = useState(false);
   const [drawingStatus, setDrawingStatus] = useState("");
+  const [navbarHeight, setNavbarHeight] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<{ aborted: boolean }>({ aborted: false });
@@ -346,6 +347,33 @@ const Chat = () => {
     });
   }, [messages]);
 
+  useEffect(() => {
+    const navbar = document.querySelector<HTMLElement>('[data-app-navbar="true"]');
+
+    if (!navbar) {
+      setNavbarHeight(0);
+      return;
+    }
+
+    const updateNavbarHeight = () => {
+      setNavbarHeight(navbar.getBoundingClientRect().height);
+    };
+
+    updateNavbarHeight();
+
+    const observer = new ResizeObserver(() => {
+      updateNavbarHeight();
+    });
+
+    observer.observe(navbar);
+    window.addEventListener("resize", updateNavbarHeight);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateNavbarHeight);
+    };
+  }, []);
+
   const handleNew = useCallback(() => {
     setActiveId(null);
     setMessages([]);
@@ -555,9 +583,12 @@ const Chat = () => {
   };
 
   const showEmpty = !loadingMsgs && messages.length === 0;
+  const chatViewportStyle = {
+    height: `calc(100dvh - ${navbarHeight}px)`,
+  };
 
   return (
-    <div className="relative flex min-h-screen bg-background">
+    <div className="relative flex overflow-hidden bg-background" style={chatViewportStyle}>
       <div className="pointer-events-none absolute inset-0 playful-bg opacity-40" aria-hidden />
       <PlayfulBackground />
 
@@ -570,10 +601,11 @@ const Chat = () => {
         loading={loadingConvos}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        offsetTop={navbarHeight}
       />
 
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-border/50 bg-card/80 px-3 py-2.5 backdrop-blur lg:hidden">
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden lg:pl-72">
+        <header className="z-20 flex shrink-0 items-center gap-2 border-b border-border/50 bg-card/80 px-3 py-2.5 backdrop-blur lg:hidden">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -600,126 +632,132 @@ const Chat = () => {
           <ChatTopControls />
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-6 sm:px-6">
-          <div className="mx-auto max-w-3xl space-y-4">
-            {loadingMsgs ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((item) => (
-                  <div key={item} className="flex gap-3">
-                    <div className="h-9 w-9 animate-pulse rounded-full bg-muted" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 w-32 animate-pulse rounded-full bg-muted" />
-                      <div className="h-20 max-w-md animate-pulse rounded-3xl bg-card shadow-soft" />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-6 sm:px-6">
+            <div className="mx-auto max-w-3xl space-y-4">
+              {loadingMsgs ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((item) => (
+                    <div key={item} className="flex gap-3">
+                      <div className="h-9 w-9 animate-pulse rounded-full bg-muted" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-32 animate-pulse rounded-full bg-muted" />
+                        <div className="h-20 max-w-md animate-pulse rounded-3xl bg-card shadow-soft" />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : showEmpty ? (
-              <div className="animate-fade-slide-up py-6">
-                <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-card/90 p-6 text-center shadow-card backdrop-blur-sm sm:p-8">
-                  <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[1.75rem] bg-gradient-primary shadow-card">
-                    <Bot className="h-10 w-10 text-primary-foreground" strokeWidth={2.2} />
-                  </div>
-                  <h1 className="text-3xl font-bold">{t("chatWelcome")}</h1>
-                  <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground sm:text-base">
-                    {t("chatDescription")}
-                  </p>
+                  ))}
+                </div>
+              ) : showEmpty ? (
+                <div className="animate-fade-slide-up py-6">
+                  <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-card/90 p-6 text-center shadow-card backdrop-blur-sm sm:p-8">
+                    <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[1.75rem] bg-gradient-primary shadow-card">
+                      <Bot className="h-10 w-10 text-primary-foreground" strokeWidth={2.2} />
+                    </div>
+                    <h1 className="text-3xl font-bold">{t("chatWelcome")}</h1>
+                    <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground sm:text-base">
+                      {t("chatDescription")}
+                    </p>
 
-                  <div className="mt-6 grid gap-3 rounded-3xl bg-muted/30 p-4 text-left sm:grid-cols-2">
-                    <div className="rounded-2xl bg-card px-4 py-3 shadow-soft">
-                      <div className="text-sm font-semibold text-foreground">{t("chatEmptyCardOneTitle")}</div>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        {t("chatEmptyCardOneDescription")}
-                      </p>
+                    <div className="mt-6 grid gap-3 rounded-3xl bg-muted/30 p-4 text-left sm:grid-cols-2">
+                      <div className="rounded-2xl bg-card px-4 py-3 shadow-soft">
+                        <div className="text-sm font-semibold text-foreground">{t("chatEmptyCardOneTitle")}</div>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          {t("chatEmptyCardOneDescription")}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-card px-4 py-3 shadow-soft">
+                        <div className="text-sm font-semibold text-foreground">{t("chatEmptyCardTwoTitle")}</div>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          {t("chatEmptyCardTwoDescription")}
+                        </p>
+                      </div>
                     </div>
-                    <div className="rounded-2xl bg-card px-4 py-3 shadow-soft">
-                      <div className="text-sm font-semibold text-foreground">{t("chatEmptyCardTwoTitle")}</div>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        {t("chatEmptyCardTwoDescription")}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="mt-6 grid w-full gap-3 sm:grid-cols-2">
-                    {suggestedMessages.map((suggestion) => (
-                      <button
-                        key={suggestion.text}
-                        type="button"
-                        onClick={() => handleSend(suggestion.text)}
-                        disabled={streaming}
-                        className="rounded-2xl border-2 border-border/60 bg-card p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <div className="mb-1 text-2xl">{suggestion.emoji}</div>
-                        <div className="text-sm font-semibold">{suggestion.text}</div>
-                      </button>
-                    ))}
+                    <div className="mt-6 grid w-full gap-3 sm:grid-cols-2">
+                      {suggestedMessages.map((suggestion) => (
+                        <button
+                          key={suggestion.text}
+                          type="button"
+                          onClick={() => handleSend(suggestion.text)}
+                          disabled={streaming}
+                          className="rounded-2xl border-2 border-border/60 bg-card p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <div className="mb-1 text-2xl">{suggestion.emoji}</div>
+                          <div className="text-sm font-semibold">{suggestion.text}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <>
-                {messages.map((message) => {
-                  if (message.role === "assistant" && message.responseMode === "journey") {
+              ) : (
+                <>
+                  {messages.map((message) => {
+                    if (message.role === "assistant" && message.responseMode === "journey") {
+                      return (
+                        <JourneyMessage
+                          key={message.id}
+                          content={message.content}
+                          audioUrl={message.audioUrl}
+                          imageUrl={message.imageUrl}
+                        />
+                      );
+                    }
+
                     return (
-                      <JourneyMessage
+                      <MessageBubble
                         key={message.id}
+                        role={message.role}
                         content={message.content}
-                        audioUrl={message.audioUrl}
                         imageUrl={message.imageUrl}
+                        audioUrl={message.audioUrl}
+                        attachments={message.attachments}
+                        isStreaming={message.streaming}
                       />
                     );
-                  }
-
-                  return (
-                    <MessageBubble
-                      key={message.id}
-                      role={message.role}
-                      content={message.content}
-                      imageUrl={message.imageUrl}
-                      audioUrl={message.audioUrl}
-                      attachments={message.attachments}
-                      isStreaming={message.streaming}
-                    />
-                  );
-                })}
-                {streaming && messages[messages.length - 1]?.content === "" ? <TypingIndicator /> : null}
-              </>
-            )}
-          </div>
-        </div>
-
-        {drawingFinished ? (
-          <div className="mx-auto mb-2 w-full max-w-3xl px-3 sm:px-6">
-            <div className="rounded-3xl border border-primary/20 bg-primary/5 p-4 shadow-soft">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                    <Wand2 className="h-4 w-4" />
-                    {t("chatDrawingReadyTitle")}
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {t("chatDrawingReadyDescription")}
-                  </p>
-                </div>
-                <Button onClick={handleGenerateStory} disabled={drawingLoading}>
-                  {drawingLoading ? drawingStatus || t("generating") : t("chatBringDrawingToLife")}
-                </Button>
-              </div>
+                  })}
+                  {streaming && messages[messages.length - 1]?.content === "" ? <TypingIndicator /> : null}
+                </>
+              )}
             </div>
           </div>
-        ) : null}
 
-        <ChatInput
-          onSend={handleSend}
-          disabled={streaming || drawingLoading}
-          isStreaming={streaming}
-          onStop={handleStop}
-          tokenBalance={tokenBalance}
-          mode={mode}
-          onModeChange={setMode}
-          onStartDrawing={handleStartDrawing}
-          drawingStarted={drawingStarted}
-        />
+          {drawingFinished ? (
+            <div className="shrink-0">
+              <div className="mx-auto mb-2 w-full max-w-3xl px-3 sm:px-6">
+                <div className="rounded-3xl border border-primary/20 bg-primary/5 p-4 shadow-soft">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                        <Wand2 className="h-4 w-4" />
+                        {t("chatDrawingReadyTitle")}
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {t("chatDrawingReadyDescription")}
+                      </p>
+                    </div>
+                    <Button onClick={handleGenerateStory} disabled={drawingLoading}>
+                      {drawingLoading ? drawingStatus || t("generating") : t("chatBringDrawingToLife")}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="shrink-0">
+            <ChatInput
+              onSend={handleSend}
+              disabled={streaming || drawingLoading}
+              isStreaming={streaming}
+              onStop={handleStop}
+              tokenBalance={tokenBalance}
+              mode={mode}
+              onModeChange={setMode}
+              onStartDrawing={handleStartDrawing}
+              drawingStarted={drawingStarted}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

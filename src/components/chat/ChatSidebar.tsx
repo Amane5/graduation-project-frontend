@@ -1,10 +1,8 @@
 import { format } from "date-fns";
-import { BookOpen, MessageCircle, Plus, Sparkles, Trash2, Trophy } from "lucide-react";
+import { MessageCircle, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
 import type { Conversation } from "@/lib/chat";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +15,7 @@ interface ChatSidebarProps {
   loading?: boolean;
   open: boolean;
   onClose: () => void;
+  offsetTop?: number;
 }
 
 const ChatSidebar = ({
@@ -28,10 +27,9 @@ const ChatSidebar = ({
   loading,
   open,
   onClose,
+  offsetTop = 0,
 }: ChatSidebarProps) => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const { userType } = useAuth();
 
   return (
     <>
@@ -43,12 +41,16 @@ const ChatSidebar = ({
       ) : null}
 
       <aside
+        style={{
+          top: `${offsetTop}px`,
+          height: `calc(100dvh - ${offsetTop}px)`,
+        }}
         className={cn(
-          "fixed left-0 top-0 z-40 flex h-screen w-72 flex-col border-r border-border/60 bg-card/95 backdrop-blur-md transition-transform duration-300 ease-out lg:sticky lg:z-auto",
+          "fixed left-0 z-40 flex w-72 flex-col overflow-hidden border-r border-border/60 bg-card/95 backdrop-blur-md transition-transform duration-300 ease-out",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
-        <div className="space-y-3 border-b border-border/50 p-4">
+        <div className="shrink-0 space-y-3 border-b border-border/50 p-4">
           {/* <div className="mb-4 flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-primary shadow-button">
               <Sparkles className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
@@ -71,12 +73,11 @@ const ChatSidebar = ({
             <Plus className="h-4 w-4" />
             {t("chatNewConversation")}
           </Button>
-
         </div>
 
-        <div className="flex-1 space-y-1 overflow-y-auto p-2">
+        <div className="min-h-0 flex-1 overflow-y-auto p-2">
           {loading ? (
-            <div className="space-y-2 p-2">
+            <div className="space-y-2">
               {[1, 2, 3].map((item) => (
                 <div key={item} className="h-12 animate-pulse rounded-xl bg-muted" />
               ))}
@@ -106,71 +107,73 @@ const ChatSidebar = ({
               </Button>
             </div>
           ) : (
-            conversations.map((conversation) => {
-              const active = conversation.id === activeId;
-              const hasValidDate =
-                conversation.lastActivity &&
-                !Number.isNaN(new Date(conversation.lastActivity).getTime());
+            <div className="space-y-1">
+              {conversations.map((conversation) => {
+                const active = conversation.id === activeId;
+                const hasValidDate =
+                  conversation.lastActivity &&
+                  !Number.isNaN(new Date(conversation.lastActivity).getTime());
 
-              return (
-                <div
-                  key={conversation.id}
-                  className={cn(
-                    "group flex items-start gap-2 rounded-2xl border px-2 py-2 transition-all",
-                    active
-                      ? "border-primary/20 bg-primary/10 shadow-soft"
-                      : "border-transparent hover:bg-muted",
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSelect(conversation.id);
-                      onClose();
-                    }}
-                    className="flex min-w-0 flex-1 items-start gap-2.5 rounded-xl px-1 py-0.5 text-left"
+                return (
+                  <div
+                    key={conversation.id}
+                    className={cn(
+                      "group flex items-start gap-2 rounded-2xl border px-2 py-2 transition-all",
+                      active
+                        ? "border-primary/20 bg-primary/10 shadow-soft"
+                        : "border-transparent hover:bg-muted",
+                    )}
                   >
-                    <MessageCircle
-                      className={cn(
-                        "mt-0.5 h-4 w-4 shrink-0",
-                        active ? "text-primary" : "text-muted-foreground",
-                      )}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelect(conversation.id);
+                        onClose();
+                      }}
+                      className="flex min-w-0 flex-1 items-start gap-2.5 rounded-xl px-1 py-0.5 text-left"
+                    >
+                      <MessageCircle
                         className={cn(
-                          "truncate text-sm font-semibold",
-                          active ? "text-primary" : "text-foreground",
+                          "mt-0.5 h-4 w-4 shrink-0",
+                          active ? "text-primary" : "text-muted-foreground",
                         )}
-                      >
-                        {conversation.title}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {hasValidDate
-                          ? format(new Date(conversation.lastActivity), "PPP p")
-                          : t("chatNoActivity")}
-                      </p>
-                    </div>
-                  </button>
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={cn(
+                            "truncate text-sm font-semibold",
+                            active ? "text-primary" : "text-foreground",
+                          )}
+                        >
+                          {conversation.title}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {hasValidDate
+                            ? format(new Date(conversation.lastActivity), "PPP p")
+                            : t("chatNoActivity")}
+                        </p>
+                      </div>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onDelete(conversation.id);
-                    }}
-                    className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                    aria-label={t("delete")}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              );
-            })
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDelete(conversation.id);
+                      }}
+                      className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                      aria-label={t("delete")}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
-        <div className="border-t border-border/50 p-3 text-center">
+        <div className="shrink-0 border-t border-border/50 p-3 text-center">
           <p className="text-[10px] text-muted-foreground">{t("chatSidebarFooter")}</p>
         </div>
       </aside>
