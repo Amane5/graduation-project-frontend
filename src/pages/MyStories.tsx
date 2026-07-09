@@ -270,6 +270,7 @@ export default function MyStories() {
   const story = selectedStory;
   const scene = story.scenes[currentSceneIndex];
   const hasAudio = Boolean(story.audioUrl);
+  const sceneImageUrl = scene?.imageUrl?.trim();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-indigo-50 to-purple-100 px-4 pb-12 pt-24 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 sm:px-6">
@@ -343,20 +344,15 @@ export default function MyStories() {
         <article className="rounded-[2rem] bg-white/85 p-5 shadow-2xl backdrop-blur dark:bg-slate-900/85 sm:p-8">
           <h2 className="text-center text-3xl font-bold sm:text-4xl">{scene?.title}</h2>
 
-          <div className="mt-5 flex min-h-[280px] items-center justify-center rounded-[2rem] bg-white/60 px-4 py-4 dark:bg-slate-800/40 sm:min-h-[420px]">
-            {scene?.imageUrl ? (
+          {sceneImageUrl ? (
+            <div className="mt-5 flex min-h-[280px] items-center justify-center rounded-[2rem] bg-white/60 px-4 py-4 dark:bg-slate-800/40 sm:min-h-[420px]">
               <img
-                src={resolveAssetUrl(scene.imageUrl)}
+                src={resolveAssetUrl(sceneImageUrl)}
                 className="max-h-[52vh] max-w-full rounded-[1.5rem] object-contain shadow-soft"
                 alt={scene.title}
               />
-            ) : (
-              <div className="text-center text-sm text-muted-foreground">
-                {t("storyTextOnlyScene")}
-              </div>
-            )
-            }
-          </div>
+            </div>
+          ) : null}
 
           <div className="mx-auto mt-6 max-w-4xl rounded-[2rem] bg-white/75 px-6 py-5 shadow-soft dark:bg-slate-800/50">
             <p className="text-lg leading-9 text-slate-700 dark:text-slate-200 sm:text-xl">
