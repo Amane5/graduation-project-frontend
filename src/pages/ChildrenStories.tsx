@@ -705,9 +705,9 @@ export default function ChildrenStories() {
               }}
               rows={1}
               placeholder={t("askAiToModifyStory")}
-              className="min-h-[44px] max-h-[250px] flex-1 resize-none overflow-hidden rounded-xl border px-3 py-2"
+              className="min-h-[44px] max-h-[250px] flex-1 resize-none overflow-hidden rounded-xl border px-3 py-2 resize-none"
             />
-            <Button onClick={handleEditWithAi} disabled={aiLoading}>
+            <Button onClick={handleEditWithAi} disabled={aiLoading || !aiMessage.trim()}>
               {t("send")}
             </Button>
           </div>

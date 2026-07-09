@@ -354,7 +354,8 @@ export default function MyStories() {
               <div className="text-center text-sm text-muted-foreground">
                 {t("storyTextOnlyScene")}
               </div>
-            )}
+            )
+            }
           </div>
 
           <div className="mx-auto mt-6 max-w-4xl rounded-[2rem] bg-white/75 px-6 py-5 shadow-soft dark:bg-slate-800/50">

@@ -644,7 +644,7 @@ export default function StoryForm() {
                 </div>
               ))}
             </div>
-
+            <div className="mt-6 flex gap-3">
             {showAddQuestion ? (
               <div className="mt-5 rounded-2xl border border-border/60 bg-muted/20 p-4">
                 <input
@@ -669,6 +669,7 @@ export default function StoryForm() {
             <Button className="mt-6 bg-green-600 hover:bg-green-600/90" onClick={handleApproveQuestions}>
               {t("storyApproveQuestions")}
             </Button>
+            </div>
           </section>
         ) : null}
       </div>
@@ -726,7 +727,7 @@ export default function StoryForm() {
                 }}
               />
 
-              <Button onClick={handleEditWithAi} disabled={aiLoading}>
+              <Button onClick={handleEditWithAi} disabled={aiLoading || !aiMessage.trim()}>
                 {t("send")}
               </Button>
             </div>
