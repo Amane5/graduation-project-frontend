@@ -310,9 +310,9 @@ const AddChild = () => {
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="firstName">{t("firstName")}</Label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="firstName">{t("firstName")}</Label>
             <Input
               id="firstName"
               name="firstName"
@@ -327,8 +327,8 @@ const AddChild = () => {
             )}
           </div>
 
-              <div>
-                <Label htmlFor="lastName">{t("lastName")}</Label>
+          {/* <div>
+            <Label htmlFor="lastName">{t("lastName")}</Label>
             <Input
               id="lastName"
               name="lastName"
@@ -341,8 +341,9 @@ const AddChild = () => {
             {touched.lastName && errors.lastName && (
               <p className="text-red-500 text-sm">{errors.lastName}</p>
             )}
-          </div>
-            </div>
+          </div> */}
+
+        </div>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
