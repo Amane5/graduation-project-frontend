@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Bot, FileText, ImageIcon, Music2, User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTranslation } from "react-i18next";
@@ -30,27 +31,57 @@ const resolveAssetUrl = (url?: string) => {
   return `${import.meta.env.VITE_API_URL}${url}`;
 };
 
-const AttachmentCard = ({ attachment }: { attachment: ChatAttachment }) => {
+const AttachmentCard = ({
+  attachment,
+  isUser,
+}: {
+  attachment: ChatAttachment;
+  isUser: boolean;
+}) => {
   const { t } = useTranslation();
   const resolvedUrl = resolveAssetUrl(attachment.url);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
+
+  useEffect(() => {
+    setImageLoadFailed(false);
+  }, [resolvedUrl]);
 
   if (attachment.kind === "image") {
     return (
-      <div className="overflow-hidden rounded-2xl border border-border/60 bg-background/80">
-        {resolvedUrl ? (
+      <div
+        className={cn(
+          "overflow-hidden rounded-2xl border",
+          isUser ? "border-white/20 bg-white/10" : "border-border/60 bg-background/80",
+        )}
+      >
+        {resolvedUrl && !imageLoadFailed ? (
           <img
             src={resolvedUrl}
             alt={attachment.name || t("chatAttachmentImage")}
             className="max-h-72 w-full object-cover"
+            loading="lazy"
+            onError={() => setImageLoadFailed(true)}
           />
         ) : (
-          <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+          <div
+            className={cn(
+              "flex min-h-28 items-center gap-2 p-3 text-sm",
+              isUser ? "text-white/80" : "text-muted-foreground",
+            )}
+          >
             <ImageIcon className="h-4 w-4" />
             <span>{attachment.name || t("chatAttachmentImage")}</span>
           </div>
         )}
         {attachment.description ? (
-          <p className="border-t border-border/60 p-3 text-xs text-muted-foreground">
+          <p
+            className={cn(
+              "border-t p-3 text-xs",
+              isUser
+                ? "border-white/15 text-white/80"
+                : "border-border/60 text-muted-foreground",
+            )}
+          >
             {attachment.description}
           </p>
         ) : null}
@@ -60,21 +91,33 @@ const AttachmentCard = ({ attachment }: { attachment: ChatAttachment }) => {
 
   if (attachment.kind === "audio") {
     return (
-      <div className="rounded-2xl border border-border/60 bg-background/80 p-3">
+      <div
+        className={cn(
+          "rounded-2xl border p-3",
+          isUser ? "border-white/20 bg-white/10" : "border-border/60 bg-background/80",
+        )}
+      >
         <div className="mb-2 flex items-center gap-2 text-sm font-medium">
           <Music2 className="h-4 w-4" />
           <span>{attachment.name || t("chatAttachmentAudio")}</span>
         </div>
         {resolvedUrl ? <audio controls src={resolvedUrl} className="w-full" /> : null}
         {attachment.description ? (
-          <p className="mt-2 text-xs text-muted-foreground">{attachment.description}</p>
+          <p className={cn("mt-2 text-xs", isUser ? "text-white/80" : "text-muted-foreground")}>
+            {attachment.description}
+          </p>
         ) : null}
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/80 p-3 text-sm">
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-2xl border p-3 text-sm",
+        isUser ? "border-white/20 bg-white/10" : "border-border/60 bg-background/80",
+      )}
+    >
       <FileText className="h-4 w-4 shrink-0" />
       <span className="truncate">{attachment.name || t("chatAttachmentFile")}</span>
     </div>
@@ -95,6 +138,49 @@ const MessageBubble = ({
   const assistantAudioUrl = resolveAssetUrl(audioUrl);
   const hasContent = content.trim().length > 0;
   const showTypingIndicator = !isUser && isStreaming && !hasContent;
+  const renderAttachmentsFirst =
+    isUser && attachments.some((attachment) => attachment.kind === "image");
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !isUser) {
+      return;
+    }
+
+    console.debug("[chat] MessageBubble props", {
+      role,
+      content,
+      attachments,
+      imageUrl,
+      audioUrl,
+    });
+  }, [attachments, audioUrl, content, imageUrl, isUser, role]);
+
+  const attachmentsMarkup =
+    attachments.length > 0 ? (
+      <div className={cn("space-y-3", hasContent && !renderAttachmentsFirst ? "mt-3" : "")}>
+        {attachments.map((attachment, index) => (
+          <AttachmentCard
+            key={`${attachment.kind}-${attachment.name}-${attachment.url ?? "no-url"}-${index}`}
+            attachment={attachment}
+            isUser={isUser}
+          />
+        ))}
+      </div>
+    ) : null;
+
+  const contentMarkup = hasContent ? (
+    <div
+      className={cn(
+        "prose prose-sm max-w-none break-words leading-7",
+        isUser
+          ? "prose-invert prose-p:text-white prose-strong:text-white prose-headings:text-white prose-a:text-white"
+          : "dark:prose-invert",
+        renderAttachmentsFirst ? "mt-3" : "",
+      )}
+    >
+      <ReactMarkdown>{content}</ReactMarkdown>
+    </div>
+  ) : null;
 
   return (
     <div
@@ -120,29 +206,8 @@ const MessageBubble = ({
             : "border-border/60 bg-card/95 text-card-foreground backdrop-blur-sm",
         )}
       >
-        {hasContent ? (
-          <div
-            className={cn(
-              "prose prose-sm max-w-none break-words leading-7",
-              isUser
-                ? "prose-invert prose-p:text-white prose-strong:text-white prose-headings:text-white prose-a:text-white"
-                : "dark:prose-invert",
-            )}
-          >
-            <ReactMarkdown>{content}</ReactMarkdown>
-          </div>
-        ) : null}
-
-        {attachments.length > 0 ? (
-          <div className={cn("space-y-3", hasContent ? "mt-3" : "")}>
-            {attachments.map((attachment, index) => (
-              <AttachmentCard
-                key={`${attachment.kind}-${attachment.name}-${attachment.url ?? "no-url"}-${index}`}
-                attachment={attachment}
-              />
-            ))}
-          </div>
-        ) : null}
+        {renderAttachmentsFirst ? attachmentsMarkup : contentMarkup}
+        {renderAttachmentsFirst ? contentMarkup : attachmentsMarkup}
 
         {!isUser && assistantImageUrl ? (
           <img

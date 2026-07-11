@@ -97,6 +97,8 @@ type UiMessage = {
   journeyData?: unknown;
 };
 
+const CHAT_DEBUG = import.meta.env.DEV;
+
 const Chat = () => {
   const { t } = useTranslation();
   const suggestedMessages = [
@@ -302,6 +304,18 @@ const Chat = () => {
           getDrawingStorySession(activeId),
         ]);
 
+        if (CHAT_DEBUG) {
+          console.debug(
+            "[chat] loaded history",
+            loadedMessages.map((message) => ({
+              id: message.id,
+              question: message.question,
+              imageUrl: message.imageUrl,
+              journeyData: message.journeyData,
+            })),
+          );
+        }
+
         setMessages(
           loadedMessages.flatMap((message) => [
             {
@@ -459,6 +473,10 @@ const Chat = () => {
       content: text,
       attachments: createAttachmentsFromFiles(files),
     };
+
+    if (CHAT_DEBUG) {
+      console.debug("[chat] optimistic user message", optimisticUser);
+    }
 
     setMessages((prev) => [...prev, optimisticUser]);
 
