@@ -327,7 +327,7 @@ const AddChild = () => {
             )}
           </div>
 
-          {/* <div>
+          <div>
             <Label htmlFor="lastName">{t("lastName")}</Label>
             <Input
               id="lastName"
@@ -341,7 +341,7 @@ const AddChild = () => {
             {touched.lastName && errors.lastName && (
               <p className="text-red-500 text-sm">{errors.lastName}</p>
             )}
-          </div> */}
+          </div>
 
         </div>
 

@@ -10,7 +10,6 @@ import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatTopControls from "@/components/chat/ChatTopControls";
 import JourneyMessage from "@/components/chat/JourneyMessage";
 import MessageBubble, { type ChatAttachment } from "@/components/chat/MessageBubble";
-import TypingIndicator from "@/components/chat/TypingIndicator";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotificationHandler } from "@/hooks/useFirebaseNotifications";
@@ -715,7 +714,6 @@ const Chat = () => {
                       />
                     );
                   })}
-                  {streaming && messages[messages.length - 1]?.content === "" ? <TypingIndicator /> : null}
                 </>
               )}
             </div>

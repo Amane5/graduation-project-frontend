@@ -94,6 +94,7 @@ const MessageBubble = ({
   const assistantImageUrl = resolveAssetUrl(imageUrl);
   const assistantAudioUrl = resolveAssetUrl(audioUrl);
   const hasContent = content.trim().length > 0;
+  const showTypingIndicator = !isUser && isStreaming && !hasContent;
 
   return (
     <div
@@ -156,7 +157,22 @@ const MessageBubble = ({
           <audio controls src={assistantAudioUrl} className="mt-3 w-full" />
         ) : null}
 
-        {isStreaming ? <span className="ml-1 inline-block animate-pulse">...</span> : null}
+        {showTypingIndicator ? (
+          <div className="flex items-center gap-1.5">
+            <span
+              className="h-2 w-2 rounded-full bg-primary/60 animate-bounce"
+              style={{ animationDelay: "0ms" }}
+            />
+            <span
+              className="h-2 w-2 rounded-full bg-primary/60 animate-bounce"
+              style={{ animationDelay: "150ms" }}
+            />
+            <span
+              className="h-2 w-2 rounded-full bg-primary/60 animate-bounce"
+              style={{ animationDelay: "300ms" }}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );
