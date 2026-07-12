@@ -70,6 +70,12 @@ interface StoryEditMessage {
   text: string;
 }
 
+type FeedbackState = {
+  tone: "loading" | "success" | "error" | "info";
+  title?: string;
+  message: string;
+} | null;
+
 const resolveAssetUrl = (url?: string | null) => {
   if (!url) return "";
   if (url.startsWith("http")) return url;
@@ -114,12 +120,11 @@ export default function StoryForm() {
   const [approvingQuestions, setApprovingQuestions] = useState(false);
   const [generationStep, setGenerationStep] = useState("");
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    tone: "loading" | "success" | "error" | "info";
-    title?: string;
-    message: string;
-  } | null>(null);
-
+  const [generatorFeedback, setGeneratorFeedback] = useState<FeedbackState>(null);
+  const [storyFeedback, setStoryFeedback] = useState<FeedbackState>(null);
+  const [editorFeedback, setEditorFeedback] = useState<FeedbackState>(null);
+  const [questionFeedback, setQuestionFeedback] = useState<FeedbackState>(null);
+  const formLocked = loading || generatedStory !== null;
   useNotificationHandler({
     type: "AI_PROGRESS",
     handler: (payload) => {
@@ -163,7 +168,7 @@ export default function StoryForm() {
         );
       } catch (error) {
         console.log(error);
-        setFeedback({
+        setEditorFeedback({
           tone: "error",
           title: t("aiStoryEditor"),
           message: "Couldn't load the editing history. You can still send a new instruction.",
@@ -196,7 +201,7 @@ export default function StoryForm() {
   const handleGenerate = async () => {
     if (loading || generatedStory) return;
     if (!selectedChild || !form.behavior.trim() || !form.length || !form.type) {
-      setFeedback({
+      setGeneratorFeedback({
         tone: "error",
         title: t("storyGeneratorTitle"),
         message: "Choose a child and complete the story details before generating.",
@@ -207,7 +212,7 @@ export default function StoryForm() {
     try {
       setGenerationStep(t("storyGeneratorStarting"));
       setLoading(true);
-      setFeedback({
+      setGeneratorFeedback({
         tone: "loading",
         title: t("storyGeneratorTitle"),
         message: "Creating the story now. You can keep reading the progress here while the AI works.",
@@ -222,14 +227,17 @@ export default function StoryForm() {
       });
       setGeneratedStory(response.data);
       setIsEditing(false);
-      setFeedback({
+      setGeneratorFeedback({
         tone: "success",
         title: "Story ready",
         message: "The story has been generated. Review the scenes, then approve or refine them below.",
       });
+      setStoryFeedback(null);
+      setEditorFeedback(null);
+      setQuestionFeedback(null);
     } catch (error) {
       console.log(error);
-      setFeedback({
+      setGeneratorFeedback({
         tone: "error",
         title: "Story generation failed",
         message: "The story could not be generated this time. Check the details and try again.",
@@ -246,7 +254,7 @@ export default function StoryForm() {
 
     try {
       setAiLoading(true);
-      setFeedback({
+      setEditorFeedback({
         tone: "loading",
         title: t("aiStoryEditor"),
         message: "Applying your editing request and preparing an updated version of the story.",
@@ -268,14 +276,16 @@ export default function StoryForm() {
         },
       ]);
       setAiMessage("");
-      setFeedback({
+      setEditorFeedback({
         tone: "success",
         title: "Story updated",
         message: response.data.summaryOfChanges || t("storyEditorUpdated"),
       });
+      setStoryFeedback(null);
+      setQuestionFeedback(null);
     } catch (error) {
       console.log(error);
-      setFeedback({
+      setEditorFeedback({
         tone: "error",
         title: "AI edit failed",
         message: "The AI could not update the story right now. Try a simpler instruction or send it again.",
@@ -290,7 +300,7 @@ export default function StoryForm() {
 
     try {
       setSavingEdit(true);
-      setFeedback({
+      setStoryFeedback({
         tone: "loading",
         title: "Saving edits",
         message: "Updating the story scenes and syncing your changes.",
@@ -317,14 +327,15 @@ export default function StoryForm() {
       window.setTimeout(() => {
         setShowSuccessAlert(false);
       }, 3000);
-      setFeedback({
+      setStoryFeedback({
         tone: "success",
         title: "Changes saved",
         message: "Your manual edits were saved successfully.",
       });
+      setQuestionFeedback(null);
     } catch (error) {
       console.log(error);
-      setFeedback({
+      setStoryFeedback({
         tone: "error",
         title: "Couldn't save edits",
         message: "The story changes were not saved. Try again to keep your updates.",
@@ -339,20 +350,20 @@ export default function StoryForm() {
 
     try {
       setApprovingStory(true);
-      setFeedback({
+      setStoryFeedback({
         tone: "loading",
         title: "Approving story",
         message: "Publishing the story so question generation can continue.",
       });
       await approveStory(generatedStory.story.id);
-      setFeedback({
+      setStoryFeedback({
         tone: "success",
         title: "Story approved",
         message: "The story is approved. You can generate the child questions next.",
       });
     } catch (error) {
       console.log(error);
-      setFeedback({
+      setStoryFeedback({
         tone: "error",
         title: "Approval failed",
         message: "The story was not approved. Please try again.",
@@ -376,21 +387,21 @@ export default function StoryForm() {
 
     try {
       setQuestionLoading(true);
-      setFeedback({
+      setQuestionFeedback({
         tone: "loading",
         title: "Generating questions",
         message: "Creating reflection questions for this story. This can take a few seconds.",
       });
       const response = await generateQuestions(generatedStory.story.id);
       setQuestions(response.data);
-      setFeedback({
+      setQuestionFeedback({
         tone: "success",
         title: "Questions ready",
         message: "The generated questions are ready for review and editing.",
       });
     } catch (error) {
       console.log(error);
-      setFeedback({
+      setQuestionFeedback({
         tone: "error",
         title: "Question generation failed",
         message: "Questions could not be generated. Try again when you’re ready.",
@@ -409,14 +420,14 @@ export default function StoryForm() {
       setQuestions((prev) => [...prev, response.data]);
       setNewQuestion("");
       setShowAddQuestion(false);
-      setFeedback({
+      setQuestionFeedback({
         tone: "success",
         title: "Question added",
         message: "The new question is now part of the review list.",
       });
     } catch (error) {
       console.log(error);
-      setFeedback({
+      setQuestionFeedback({
         tone: "error",
         title: "Couldn't add question",
         message: "The new question was not saved. Try adding it again.",
@@ -431,14 +442,14 @@ export default function StoryForm() {
       setDeletingQuestionId(questionId);
       await deleteQuestion(questionId);
       setQuestions((prev) => prev.filter((question) => question.id !== questionId));
-      setFeedback({
+      setQuestionFeedback({
         tone: "success",
         title: "Question removed",
         message: "The question has been removed from this story.",
       });
     } catch (error) {
       console.log(error);
-      setFeedback({
+      setQuestionFeedback({
         tone: "error",
         title: "Couldn't remove question",
         message: "The question is still here because the delete request failed.",
@@ -457,14 +468,14 @@ export default function StoryForm() {
       );
       setEditingQuestionId(null);
       setEditedQuestion("");
-      setFeedback({
+      setQuestionFeedback({
         tone: "success",
         title: "Question updated",
         message: "Your edits to the question were saved.",
       });
     } catch (error) {
       console.log(error);
-      setFeedback({
+      setQuestionFeedback({
         tone: "error",
         title: "Couldn't update question",
         message: "The edited question was not saved. Please try again.",
@@ -479,7 +490,7 @@ export default function StoryForm() {
 
     try {
       setApprovingQuestions(true);
-      setFeedback({
+      setQuestionFeedback({
         tone: "loading",
         title: "Approving questions",
         message: "Finalizing the questions and opening the child story library next.",
@@ -494,7 +505,7 @@ export default function StoryForm() {
       navigate(`/my-stories/${childId}`);
     } catch (error) {
       console.log(error);
-      setFeedback({
+      setQuestionFeedback({
         tone: "error",
         title: "Couldn't approve questions",
         message: "The questions are still in review because approval did not finish.",
@@ -522,11 +533,11 @@ export default function StoryForm() {
           </div>
 
           <div className="space-y-5">
-            {feedback ? (
+            {generatorFeedback ? (
               <AsyncFeedback
-                tone={feedback.tone}
-                title={feedback.title}
-                message={feedback.message}
+                tone={generatorFeedback.tone}
+                title={generatorFeedback.title}
+                message={generatorFeedback.message}
               />
             ) : null}
 
@@ -550,7 +561,7 @@ export default function StoryForm() {
               <div>
                 <label className="mb-2 block text-sm font-semibold">{t("chooseChild")}</label>
                 <Select
-                  disabled={loading || childrenState !== "ready"}
+                  disabled={formLocked || childrenState !== "ready"}
                   value={selectedChild ? String(selectedChild) : ""}
                   onValueChange={(value) => setSelectedChild(Number(value))}
                 >
@@ -572,7 +583,7 @@ export default function StoryForm() {
               <div>
                 <label className="mb-2 block text-sm font-semibold">{t("storyLength")}</label>
                 <select
-                  disabled={loading}
+                  disabled={formLocked}
                   name="length"
                   value={form.length}
                   onChange={handleChange}
@@ -589,7 +600,7 @@ export default function StoryForm() {
             <div>
               <label className="mb-2 block text-sm font-semibold">{t("educationalGoal")}</label>
               <textarea
-                disabled={loading}
+                disabled={formLocked}
                 name="behavior"
                 value={form.behavior}
                 onChange={handleChange}
@@ -602,7 +613,7 @@ export default function StoryForm() {
               <div>
                 <label className="mb-2 block text-sm font-semibold">{t("storyType")}</label>
                 <select
-                  disabled={loading}
+                  disabled={formLocked}
                   name="type"
                   value={form.type}
                   onChange={handleChange}
@@ -621,7 +632,7 @@ export default function StoryForm() {
                 <div className="mt-3 flex flex-wrap gap-4 text-sm text-foreground">
                   <label className="inline-flex items-center gap-2">
                     <input
-                      disabled={loading}
+                      disabled={formLocked}
                       type="checkbox"
                       name="withImage"
                       checked={form.withImage}
@@ -632,7 +643,7 @@ export default function StoryForm() {
 
                   <label className="inline-flex items-center gap-2">
                     <input
-                      disabled={loading}
+                      disabled={formLocked}
                       type="checkbox"
                       name="withAudio"
                       checked={form.withAudio}
@@ -695,6 +706,14 @@ export default function StoryForm() {
             ) : null}
 
             <div className="mt-6 space-y-5">
+              {storyFeedback ? (
+                <AsyncFeedback
+                  tone={storyFeedback.tone}
+                  title={storyFeedback.title}
+                  message={storyFeedback.message}
+                />
+              ) : null}
+
               {generatedStory.scenes.map((scene, index) => (
                 <div key={scene.id} className="rounded-[1.75rem] border border-border/60 bg-muted/20 p-5">
                   <div className="mb-4">
@@ -773,25 +792,14 @@ export default function StoryForm() {
                     >
                       {t("approveStory")}
                     </Button>
-                  ) : (
-                    <Button
-                      onClick={handleGenerateQuestions}
-                      disabled={questionLoading || questions.length > 0}
-                      loading={questionLoading}
-                      loadingText={t("storyGeneratingQuestions")}
-                    >
-                      {questions.length > 0
-                        ? t("storyQuestionsAlreadyGenerated")
-                        : t("storyGenerateQuestions")}
-                    </Button>
-                  )}
+                  ) : null}
                 </>
               )}
             </div>
           </section>
         ) : null}
 
-        {questions.length > 0 ? (
+        {storyApproved || questions.length > 0 || questionFeedback ? (
           <section className="mt-8 rounded-[2rem] border border-border/50 bg-card/90 p-6 shadow-card backdrop-blur-sm">
             <div className="mb-6">
               <h2 className="text-2xl font-bold">{t("storyQuestionsTitle")}</h2>
@@ -799,6 +807,33 @@ export default function StoryForm() {
                 {t("storyQuestionsReviewDescription")}
               </p>
             </div>
+
+            {questionFeedback ? (
+              <div className="mb-6">
+                <AsyncFeedback
+                  tone={questionFeedback.tone}
+                  title={questionFeedback.title}
+                  message={questionFeedback.message}
+                />
+              </div>
+            ) : null}
+
+            {questions.length === 0 ? (
+              <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+                <p className="text-sm text-muted-foreground">
+                  {t("storyQuestionsReviewDescription")}
+                </p>
+                <Button
+                  className="mt-4"
+                  onClick={handleGenerateQuestions}
+                  disabled={questionLoading}
+                  loading={questionLoading}
+                  loadingText={t("storyGeneratingQuestions")}
+                >
+                  {t("storyGenerateQuestions")}
+                </Button>
+              </div>
+            ) : null}
 
             <div className="space-y-4">
               {questions.map((question) => (
@@ -860,39 +895,45 @@ export default function StoryForm() {
                 </div>
               ))}
             </div>
-            <div className="mt-6 flex gap-3">
-            {showAddQuestion ? (
-              <div className="mt-5 rounded-2xl border border-border/60 bg-muted/20 p-4">
-                <input
-                  value={newQuestion}
-                  onChange={(event) => setNewQuestion(event.target.value)}
-                  className="w-full rounded-xl border border-input bg-background p-3 text-foreground"
-                  placeholder={t("storyNewQuestionPlaceholder")}
-                  disabled={addingQuestion}
-                />
-                <div className="mt-3 flex gap-2">
-                  <Button onClick={handleAddQuestion} loading={addingQuestion}>
-                    {t("save")}
+            {questions.length > 0 ? (
+              <div className="mt-6 flex gap-3">
+                {showAddQuestion ? (
+                  <div className="mt-5 rounded-2xl border border-border/60 bg-muted/20 p-4">
+                    <input
+                      value={newQuestion}
+                      onChange={(event) => setNewQuestion(event.target.value)}
+                      className="w-full rounded-xl border border-input bg-background p-3 text-foreground"
+                      placeholder={t("storyNewQuestionPlaceholder")}
+                      disabled={addingQuestion}
+                    />
+                    <div className="mt-3 flex gap-2">
+                      <Button onClick={handleAddQuestion} loading={addingQuestion}>
+                        {t("save")}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowAddQuestion(false)}
+                        disabled={addingQuestion}
+                      >
+                        {t("cancel")}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button className="mt-6" onClick={() => setShowAddQuestion(true)}>
+                    {t("storyAddQuestion")}
                   </Button>
-                  <Button variant="outline" onClick={() => setShowAddQuestion(false)} disabled={addingQuestion}>
-                    {t("cancel")}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button className="mt-6" onClick={() => setShowAddQuestion(true)}>
-                {t("storyAddQuestion")}
-              </Button>
-            )}
+                )}
 
-            <Button
-              className="mt-6 bg-green-600 hover:bg-green-600/90"
-              onClick={handleApproveQuestions}
-              loading={approvingQuestions}
-            >
-              {t("storyApproveQuestions")}
-            </Button>
-            </div>
+                <Button
+                  className="mt-6 bg-green-600 hover:bg-green-600/90"
+                  onClick={handleApproveQuestions}
+                  loading={approvingQuestions}
+                >
+                  {t("storyApproveQuestions")}
+                </Button>
+              </div>
+            ) : null}
           </section>
         ) : null}
       </div>
@@ -915,6 +956,14 @@ export default function StoryForm() {
           </div>
 
           <div className="flex-1 space-y-4 overflow-y-auto p-4">
+            {editorFeedback ? (
+              <AsyncFeedback
+                tone={editorFeedback.tone}
+                title={editorFeedback.title}
+                message={editorFeedback.message}
+              />
+            ) : null}
+
             {editorMessagesLoading ? (
               <AsyncFeedback
                 tone="loading"
