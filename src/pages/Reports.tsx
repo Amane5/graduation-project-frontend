@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import PlayfulBackground from "@/components/PlayfulBackground";
+import { AsyncFeedback } from "@/components/ui/async-feedback";
+import { PageState } from "@/components/ui/page-state";
 
 import {
   Select,
@@ -51,11 +53,11 @@ type ChatReport = {
   analyticalAvg: number;
 
   topCategories: string[];
- topSubcategories: string[];
+  topSubcategories: string[];
 
   recommendations: string[];
   emotionalSummary?: string | null;
-  insights?: any;
+  insights?: unknown;
 };
 
 export default function Reports()  {
@@ -66,6 +68,7 @@ export default function Reports()  {
   const [chatReport, setChatReport] = useState<ChatReport | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const [activeTab, setActiveTab] = useState<"story" | "chat">("story");
 
@@ -84,11 +87,13 @@ export default function Reports()  {
     const loadReports = async () => {
         try{
             setLoading(true)
+            setLoadError("")
             const res = await getChildReport(Number(childId))
             setStoryReports(res.data.reports || [])
 
         }catch(err){
             console.log(err)
+            setLoadError("The story reports could not be loaded.")
         }finally{
             setLoading(false)
         }
@@ -104,12 +109,14 @@ export default function Reports()  {
     const load = async () => {
       try {
         setLoading(true);
+        setLoadError("");
 
         const res = await getChatReport(Number(childId));
 console.log(res);
         setChatReport(res.data || null);
       } catch (err) {
         console.log(err);
+        setLoadError("The chat report could not be loaded.");
       } finally {
         setLoading(false);
       }
@@ -194,9 +201,28 @@ console.log(res);
     </button>
   </div>
    
-    {loading && <div>Loading...</div>}
+    {loading ? (
+      <AsyncFeedback
+        tone="loading"
+        title={activeTab === "story" ? "Loading story reports" : "Loading chat report"}
+        message="Fetching the latest report data for this child."
+        className="mb-6"
+      />
+    ) : null}
 
-    {!loading && activeTab === "story" && (
+    {!loading && loadError ? (
+      <PageState
+        icon={FileText}
+        title="Couldn't load reports"
+        description={loadError}
+        actionLabel={t("tryAgain")}
+        onAction={() => window.location.reload()}
+        tone="warning"
+        className="mb-6"
+      />
+    ) : null}
+
+    {!loading && !loadError && activeTab === "story" && (
       
       <div className="grid gap-4">
          <div className="grid md:grid-cols-3 gap-4 mb-8">
@@ -232,6 +258,14 @@ console.log(res);
       </div>
 
     </div>
+        {storyReports.length === 0 ? (
+        <PageState
+          icon={BookOpen}
+          title="No story reports yet"
+          description="Reports appear here after a child completes story questions."
+        />
+        ) : null}
+
         {storyReports.map((report) => (
         <div
             key={report.id}
@@ -283,7 +317,7 @@ console.log(res);
       </div>
     )}
       
-    {!loading && activeTab === "chat" && (
+    {!loading && !loadError && activeTab === "chat" && (
       <div className="bg-card border rounded-2xl p-6 text-center">
         <div className="grid gap-4">
         <div className="grid md:grid-cols-3 gap-4 mb-6">
@@ -305,6 +339,8 @@ console.log(res);
     </div>
 
 
+      {chatReport ? (
+      <>
       {/* Top Interests */}
     <div className="bg-card border rounded-2xl p-5">
       <h3 className="font-bold mb-3">{t("Top Interests")}</h3>
@@ -367,6 +403,14 @@ console.log(res);
           ))}
         </div>
       </div>
+      )}
+      </>
+      ) : (
+      <PageState
+        icon={FileText}
+        title="No chat report yet"
+        description="Chat insights appear here after enough conversations have been analyzed."
+      />
       )}
 
       {/* <div className="bg-card border rounded-2xl p-5">

@@ -5,6 +5,8 @@ import {
 } from "react-router-dom";
 
 import PlayfulBackground from "@/components/PlayfulBackground";
+import { AsyncFeedback } from "@/components/ui/async-feedback";
+import { PageState } from "@/components/ui/page-state";
 
 import { getStoryReport } from "@/lib/reports";
 
@@ -51,6 +53,7 @@ export default function StoryReport () {
   const educationalGoal = location.state?.educationalGoal;
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [data, setData] = useState<StoryReportResponse | null>(null);
 
@@ -60,10 +63,12 @@ export default function StoryReport () {
     const load = async () => {
         try{
             setLoading(true)
+            setError("")
             const res = await getStoryReport(Number(storyId))
             setData(res.data)
         }catch(err){
             console.log(err)
+            setError("The story report could not be loaded.")
         }finally{
             setLoading(false)
         }
@@ -73,16 +78,29 @@ export default function StoryReport () {
 
   if (loading) {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      Loading...
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-2xl">
+        <AsyncFeedback
+          tone="loading"
+          title="Loading story report"
+          message="Gathering the evaluation summary and question-by-question feedback."
+        />
+      </div>
     </div>
   );
     }
 
-  if (!data) {
+  if (error || !data) {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      Report not found
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-2xl">
+        <PageState
+          icon={FileText}
+          title="Report not available"
+          description={error || "This report could not be found."}
+          tone="warning"
+        />
+      </div>
     </div>
   );
 }

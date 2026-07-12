@@ -1,17 +1,18 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { Eye, EyeOff, Loader2, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
+import { AsyncFeedback } from "@/components/ui/async-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { registerSchema } from "@/lib/validation";
-import PlayfulBackground from "@/components/PlayfulBackground";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { useNotificationHandler } from "@/hooks/useFirebaseNotifications";
 import { register } from "@/lib/auth";
 import { ApiError } from "@/lib/http";
-import { useTranslation } from "react-i18next";
-import { useNotificationHandler } from "@/hooks/useFirebaseNotifications";
+import { cn } from "@/lib/utils";
+import { registerSchema } from "@/lib/validation";
+import PlayfulBackground from "@/components/PlayfulBackground";
 
 type Errors = Partial<Record<keyof FormState, string>>;
 
@@ -43,22 +44,25 @@ const Register = () => {
   const [showRepeat, setShowRepeat] = useState(false);
   const [loading, setLoading] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
+  const [submitError, setSubmitError] = useState("");
 
   useNotificationHandler({
     type: "register",
-    handler: (p) => {
-      console.log(p);
+    handler: (payload) => {
+      console.log(payload);
     },
   });
 
   const validate = (data: FormState): Errors => {
     const result = registerSchema.safeParse(data);
     if (result.success) return {};
+
     const fieldErrors: Errors = {};
     for (const issue of result.error.issues) {
       const key = issue.path[0] as keyof FormState;
       if (key && !fieldErrors[key]) fieldErrors[key] = issue.message;
     }
+
     return fieldErrors;
   };
 
@@ -66,23 +70,22 @@ const Register = () => {
   const isValid = Object.keys(liveErrors).length === 0;
 
   const update = (key: keyof FormState, value: string) => {
-    setForm((f) => ({ ...f, [key]: value }));
+    setForm((current) => ({ ...current, [key]: value }));
     if (touched[key]) {
       setErrors(validate({ ...form, [key]: value }));
     }
   };
 
   const handleBlur = (key: keyof FormState) => {
-    setTouched((t) => ({ ...t, [key]: true }));
+    setTouched((current) => ({ ...current, [key]: true }));
     setErrors(validate(form));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-    const v = validate(form);
-    setErrors(v);
-
+    const nextErrors = validate(form);
+    setErrors(nextErrors);
     setTouched({
       email: true,
       password: true,
@@ -92,14 +95,16 @@ const Register = () => {
       lastName: true,
     });
 
-    if (Object.keys(v).length > 0) {
-      setShakeKey((k) => k + 1);
+    if (Object.keys(nextErrors).length > 0) {
+      setShakeKey((current) => current + 1);
       return;
     }
+
+    setSubmitError("");
     setLoading(true);
 
     try {
-      const res = await register({
+      await register({
         username: form.username.trim(),
         password: form.password,
         confirmPassword: form.repeatPassword,
@@ -108,79 +113,71 @@ const Register = () => {
         lastName: form.lastName.trim(),
       });
 
-      console.log("REGISTER RESPONSE:", res);
-
-      setLoading(false);
-
       navigate("/verify-email", {
         state: {
           email: form.email,
           username: form.username.trim(),
         },
       });
-    } catch (err) {
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : "Something went wrong while creating the account. Please try again.";
+
+      setSubmitError(message);
+      setShakeKey((current) => current + 1);
+    } finally {
       setLoading(false);
-
-      const code = (err as Error).message;
-
-      const msg =
-        code === "USERNAME_TAKEN"
-          ? "That username is already taken 😅"
-          : code === "EMAIL_TAKEN"
-            ? "An account with this email already exists 💌"
-            : "Something went wrong, please try again 💫";
-
-      toast.error(msg);
-      setShakeKey((k) => k + 1);
-      if (err instanceof ApiError) {
-        toast.error(err.message);
-      } else {
-        toast.error("Unexpected error 💥");
-      }
     }
   };
 
   const showError = (key: keyof FormState) => touched[key] && errors[key];
 
   return (
-    <div className="min-h-screen playful-bg flex items-center justify-center px-4 py-12 relative">
+    <div className="relative flex min-h-screen items-center justify-center px-4 py-12 playful-bg">
       <PlayfulBackground />
 
-      <div className="w-full max-w-md relative z-10 animate-fade-slide-up">
-        <div className="flex flex-col items-center mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-button mb-3">
-            <Sparkles
-              className="w-8 h-8 text-primary-foreground"
-              strokeWidth={2.5}
-            />
+      <div className="relative z-10 w-full max-w-md animate-fade-slide-up">
+        <div className="mb-6 flex flex-col items-center">
+          <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-primary shadow-button">
+            <Sparkles className="h-8 w-8 text-primary-foreground" strokeWidth={2.5} />
           </div>
-          <h2 className="text-sm font-semibold text-primary tracking-wide uppercase">
-            Little Minds
-          </h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-primary">Little Minds</h2>
         </div>
 
         <div
           key={shakeKey}
           className={cn(
-            "bg-card rounded-3xl shadow-card p-8 sm:p-10 border border-border/50",
+            "rounded-3xl border border-border/50 bg-card p-8 shadow-card sm:p-10",
             shakeKey > 0 && "animate-shake",
           )}
         >
-          <div className="text-center mb-7">
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              {t("createParentAccount")}
-            </h1>
-            <p className="text-muted-foreground text-sm">{t("startJourney")}</p>
+          <div className="mb-7 text-center">
+            <h1 className="mb-2 text-3xl font-bold text-foreground">{t("createParentAccount")}</h1>
+            <p className="text-sm text-muted-foreground">{t("startJourney")}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            {loading ? (
+              <AsyncFeedback
+                tone="loading"
+                title={t("createAccount")}
+                message="Creating the account and preparing email verification."
+              />
+            ) : null}
+
+            {submitError ? (
+              <AsyncFeedback tone="error" title="Couldn't create account" message={submitError} />
+            ) : null}
+
             <Field
               id="email"
               label={t("email")}
               type="email"
               placeholder={t("emailPlaceholder")}
               value={form.email}
-              onChange={(v) => update("email", v)}
+              onChange={(value) => update("email", value)}
               onBlur={() => handleBlur("email")}
               error={showError("email")}
               autoComplete="email"
@@ -192,14 +189,14 @@ const Register = () => {
               type={showPwd ? "text" : "password"}
               placeholder={t("passwordPlaceholder")}
               value={form.password}
-              onChange={(v) => update("password", v)}
+              onChange={(value) => update("password", value)}
               onBlur={() => handleBlur("password")}
               error={showError("password")}
               autoComplete="new-password"
               rightIcon={
                 <button
                   type="button"
-                  onClick={() => setShowPwd((s) => !s)}
+                  onClick={() => setShowPwd((current) => !current)}
                   className="text-muted-foreground hover:text-primary"
                 >
                   {showPwd ? <EyeOff /> : <Eye />}
@@ -213,14 +210,14 @@ const Register = () => {
               type={showRepeat ? "text" : "password"}
               placeholder={t("repeatPasswordPlaceholder")}
               value={form.repeatPassword}
-              onChange={(v) => update("repeatPassword", v)}
+              onChange={(value) => update("repeatPassword", value)}
               onBlur={() => handleBlur("repeatPassword")}
               error={showError("repeatPassword")}
               autoComplete="new-password"
               rightIcon={
                 <button
                   type="button"
-                  onClick={() => setShowRepeat((s) => !s)}
+                  onClick={() => setShowRepeat((current) => !current)}
                   className="text-muted-foreground hover:text-primary"
                 >
                   {showRepeat ? <EyeOff /> : <Eye />}
@@ -234,7 +231,7 @@ const Register = () => {
               type="text"
               placeholder={t("usernamePlaceholder")}
               value={form.username}
-              onChange={(v) => update("username", v)}
+              onChange={(value) => update("username", value)}
               onBlur={() => handleBlur("username")}
               error={showError("username")}
               autoComplete="username"
@@ -247,7 +244,7 @@ const Register = () => {
                 type="text"
                 placeholder={t("firstNamePlaceholder")}
                 value={form.firstName}
-                onChange={(v) => update("firstName", v)}
+                onChange={(value) => update("firstName", value)}
                 onBlur={() => handleBlur("firstName")}
                 error={showError("firstName")}
               />
@@ -257,7 +254,7 @@ const Register = () => {
                 type="text"
                 placeholder={t("lastNamePlaceholder")}
                 value={form.lastName}
-                onChange={(v) => update("lastName", v)}
+                onChange={(value) => update("lastName", value)}
                 onBlur={() => handleBlur("lastName")}
                 error={showError("lastName")}
               />
@@ -267,23 +264,18 @@ const Register = () => {
               type="submit"
               variant="hero"
               size="lg"
-              className="w-full mt-6"
+              className="mt-6 w-full"
               disabled={!isValid || loading}
+              loading={loading}
+              loadingText={t("creatingAccount")}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  {t("creatingAccount")}
-                </>
-              ) : (
-                t("createAccount")
-              )}
+              {t("createAccount")}
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
+          <p className="mt-6 text-center text-sm text-muted-foreground">
             {t("alreadyHaveAccount")}{" "}
-            <Link to="/login" className="text-primary font-semibold">
+            <Link to="/login" className="font-semibold text-primary">
               {t("login")}
             </Link>
           </p>
@@ -299,7 +291,7 @@ interface FieldProps {
   type: string;
   placeholder: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
   onBlur: () => void;
   error?: string | false;
   autoComplete?: string;
@@ -326,14 +318,14 @@ const Field = ({
         type={type}
         placeholder={placeholder}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         onBlur={onBlur}
         autoComplete={autoComplete}
         className={cn(error && "border-red-500")}
       />
-      {rightIcon && <div className="absolute right-3 top-2">{rightIcon}</div>}
+      {rightIcon ? <div className="absolute right-3 top-2">{rightIcon}</div> : null}
     </div>
-    {error && <p className="text-xs text-red-500">{error}</p>}
+    {error ? <p className="text-xs text-red-500">{error}</p> : null}
   </div>
 );
 

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Eye, EyeOff } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { AsyncFeedback } from "@/components/ui/async-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,7 +53,7 @@ const AddChild = () => {
   const isEditMode = !!editingChild;
   const navigate = useNavigate();
   const { id: editId } = useParams<{ id?: string }>();
-  const { accessToken, updateSessionUser, user } = useAuth();
+  const { updateSessionUser, user } = useAuth();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -77,8 +78,14 @@ const AddChild = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [feedback, setFeedback] = useState<{
+    tone: "loading" | "success" | "error" | "info";
+    title?: string;
+    message: string;
+  } | null>(null);
 
   const [readingLevel, setReadingLevel] = useState("");
   const [responseLength, setResponseLength] = useState("");
@@ -147,6 +154,13 @@ const AddChild = () => {
 
     setLoading(true);
     setSubmitError("");
+    setFeedback({
+      tone: "loading",
+      title: isEditMode ? t("updateChild") : t("createChild"),
+      message: isEditMode
+        ? "Saving the latest child profile changes."
+        : "Creating the child profile and saving preferences.",
+    });
 
     try {
       if (isEditMode && editingChild) {
@@ -175,12 +189,14 @@ const AddChild = () => {
               blockedTopics,
             });
         }
-        console.log(">>>>>>>>>>>>>>>>", birthDate);
         toast.success(t("updated"));
+        setFeedback({
+          tone: "success",
+          title: t("updated"),
+          message: "The child profile was updated successfully.",
+        });
         navigate("/dashboard");
       } else {
-        console.log("STEP 3 CALLING CREATE CHILD");
-        console.log("CALLING API WITH TOKEN:", accessToken);
         await createChild({
           firstName,
           lastName,
@@ -197,6 +213,11 @@ const AddChild = () => {
         });
 
         toast.success(t("childCreatedSuccess"));
+        setFeedback({
+          tone: "success",
+          title: t("success"),
+          message: t("childCreatedSuccess"),
+        });
         navigate("/dashboard");
       }
     } catch (err) {
@@ -211,6 +232,11 @@ const AddChild = () => {
       } else {
         setSubmitError(error.message);
       }
+      setFeedback({
+        tone: "error",
+        title: isEditMode ? "Couldn't update child" : "Couldn't create child",
+        message: error.message,
+      });
     } finally {
       setLoading(false);
     }
@@ -243,7 +269,7 @@ const AddChild = () => {
   }, [editingChild]);
   useEffect(() => {
     if (editId && !editingChild) {
-      setLoading(true);
+      setPageLoading(true);
       getChildById(editId)
         .then((res) => {
           const child = res.data;
@@ -264,7 +290,7 @@ const AddChild = () => {
           setBlockedTopicsDraft("");
         })
         .catch(() => navigate("/dashboard"))
-        .finally(() => setLoading(false));
+        .finally(() => setPageLoading(false));
     }
   }, [editId, editingChild, navigate]);
   useEffect(() => {
@@ -300,6 +326,22 @@ const AddChild = () => {
             </p>
           </div>
         </div>
+
+        {feedback ? (
+          <div className="mb-6">
+            <AsyncFeedback tone={feedback.tone} title={feedback.title} message={feedback.message} />
+          </div>
+        ) : null}
+
+        {pageLoading ? (
+          <div className="mb-6">
+            <AsyncFeedback
+              tone="loading"
+              title="Loading child profile"
+              message="Fetching the latest profile details so you can keep editing."
+            />
+          </div>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <section className="rounded-[2rem] border border-border/50 bg-card/90 p-6 shadow-soft backdrop-blur-sm">
@@ -576,7 +618,7 @@ const AddChild = () => {
             </div>
           </section>
 
-          {submitError && <p className="text-red-500">{submitError}</p>}
+          {/* {submitError && <p className="text-red-500">{submitError}</p>} */}
 
           <div className="flex flex-col gap-3 rounded-[2rem] border border-border/50 bg-card/90 p-5 shadow-soft backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
@@ -585,6 +627,7 @@ const AddChild = () => {
             <Button
               disabled={
                 loading ||
+                pageLoading ||
                 !firstName.trim() ||
                 !lastName.trim() ||
                 !gender.trim() ||
@@ -593,12 +636,10 @@ const AddChild = () => {
                 (!isEditMode && (!password || !repeatPassword))
               }
               className="sm:min-w-[180px]"
+              loading={loading}
+              loadingText={t("saving")}
             >
-              {loading
-                ? t("saving")
-                : isEditMode
-                  ? t("updateChild")
-                  : t("createChild")}
+              {isEditMode ? t("updateChild") : t("createChild")}
             </Button>
           </div>
         </form>

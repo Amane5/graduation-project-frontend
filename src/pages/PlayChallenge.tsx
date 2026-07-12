@@ -12,6 +12,8 @@ import {
 import { toast } from "sonner";
 
 import PlayfulBackground from "@/components/PlayfulBackground";
+import { AsyncFeedback } from "@/components/ui/async-feedback";
+import { PageState } from "@/components/ui/page-state";
 
 import { motion } from "framer-motion";
 
@@ -44,6 +46,7 @@ const PlayChallenge = () => {
   const [answers, setAnswers] = useState<Record<number, string>>({});
 
   const [submitting, setSubmitting] =useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["playChallenge", id],
@@ -59,13 +62,34 @@ const PlayChallenge = () => {
         toast.error("You already completed this challenge");
         navigate(`/challenge/${id}/results`);
     }
-    }, [participant]);
+    }, [id, navigate, participant]);
 
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-2xl">
+          <AsyncFeedback
+            tone="loading"
+            title="Loading challenge"
+            message="Preparing the challenge questions and your current progress."
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (!challenge) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-2xl">
+          <PageState
+            icon={Trophy}
+            title="Challenge not available"
+            description="This challenge could not be loaded or is no longer available."
+            tone="warning"
+          />
+        </div>
       </div>
     );
   }
@@ -93,6 +117,7 @@ const PlayChallenge = () => {
   const handleFinish = async () => {
     try {
       setSubmitting(true);
+      setSubmitError("");
 
       for (const q of questions) {
         const answer =
@@ -119,6 +144,7 @@ const PlayChallenge = () => {
       toast.error(
         "Failed to submit challenge"
       );
+      setSubmitError("Your answers were not submitted. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -130,6 +156,22 @@ const PlayChallenge = () => {
 
       <div className="relative z-10">
         <main className="max-w-3xl mx-auto px-4 py-8">
+          {submitting ? (
+            <div className="mb-6">
+              <AsyncFeedback
+                tone="loading"
+                title="Submitting challenge"
+                message="Saving each answer and finishing the challenge. Please keep this page open."
+              />
+            </div>
+          ) : null}
+
+          {submitError ? (
+            <div className="mb-6">
+              <AsyncFeedback tone="error" title="Couldn't finish challenge" message={submitError} />
+            </div>
+          ) : null}
+
           <div className="mb-8">
             <h1 className="text-3xl font-bold">
               {challenge.title}
@@ -236,12 +278,11 @@ const PlayChallenge = () => {
                 disabled={
                   submitting
                 }
+                loading={submitting}
               >
                 <Trophy className="w-4 h-4 mr-2" />
 
-                {submitting
-                  ? "Submitting..."
-                  : "Finish Challenge"}
+                {"Finish Challenge"}
               </Button>
             )}
           </div>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Sparkles } from "lucide-react";
+import { AsyncFeedback } from "@/components/ui/async-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,7 @@ const Login = () => {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
   const [forgotOpen, setForgotOpen] = useState(false);
 
   const isValid =
@@ -46,6 +48,7 @@ const Login = () => {
 
     setLoading(true);
     setError("");
+    setStatusMessage("Signing you in and preparing your dashboard.");
 
 
     try {
@@ -72,10 +75,13 @@ const Login = () => {
         replace: true,
       });
     } catch (err) {
+      setStatusMessage("");
       if (err instanceof ApiError) {
         toast.error(err.message);
+        setError(err.message);
       } else {
         toast.error(t("unexpectedError"));
+        setError(t("unexpectedError"));
       }
     } finally {
       setLoading(false);
@@ -97,6 +103,10 @@ const Login = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {statusMessage && !error ? (
+              <AsyncFeedback tone="loading" title={t("login")} message={statusMessage} />
+            ) : null}
+
             <div>
               <Label>{t("username")}</Label>
               <Input
@@ -129,6 +139,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setUserType("parent")}
+                  disabled={loading}
                   className={cn(
                     "flex-1 py-2 rounded-xl border transition flex items-center justify-center gap-2",
                     userType === "parent"
@@ -142,6 +153,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setUserType("child")}
+                  disabled={loading}
                   className={cn(
                     "flex-1 py-2 rounded-xl border transition flex items-center justify-center gap-2",
                     userType === "child"
@@ -154,11 +166,17 @@ const Login = () => {
               </div>
             </div>
             {error && (
-              <p className="text-red-500 text-center text-sm">{error}</p>
+              <AsyncFeedback tone="error" title="Couldn't sign in" message={error} />
             )}
 
-            <Button type="submit" disabled={loading || !isValid} className="w-full">
-              {loading ? <Loader2 className="animate-spin" /> : t("login")}
+            <Button
+              type="submit"
+              disabled={loading || !isValid}
+              className="w-full"
+              loading={loading}
+              loadingText={t("login")}
+            >
+              {t("login")}
             </Button>
           </form>
 

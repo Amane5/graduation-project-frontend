@@ -17,6 +17,8 @@ import { toast } from "sonner";
 import DeleteChildModal from "@/components/dashboard/DeleteChildModal";
 import { AlertTriangleIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AsyncFeedback } from "@/components/ui/async-feedback";
+import { PageState } from "@/components/ui/page-state";
 
 type ChildFile = {
   id: number;
@@ -44,34 +46,47 @@ export default function MyFiles() {
   const [editChildren, setEditChildren] = useState<string[]>([]);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [showAlert, setShowAlert] = useState(false);
+  const [childrenState, setChildrenState] = useState<"loading" | "ready" | "error">("loading");
+  const [filesState, setFilesState] = useState<"loading" | "ready" | "error">("loading");
+  const [uploading, setUploading] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    tone: "loading" | "success" | "error" | "info";
+    title?: string;
+    message: string;
+  } | null>(null);
+
+  const loadChildren = async () => {
+    try {
+      setChildrenState("loading");
+      const childrenList = await getChildren();
+      setChildren(childrenList.data || []);
+      setChildrenState("ready");
+    } catch (error) {
+      console.log(error);
+      setChildrenState("error");
+    }
+  };
+
+  const loadFiles = async () => {
+    try {
+      setFilesState("loading");
+      const data = await getFiles();
+      setFiles(data.data.documents || []);
+      setFilesState("ready");
+    } catch (error) {
+      console.log(error);
+      setFilesState("error");
+    }
+  };
 
   useEffect(() => {
     if (!user?.id) return;
-
-    const loadChildren = async () => {
-      try {
-        const childrenList = await getChildren();
-        setChildren(childrenList.data || []);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-
     void loadChildren();
   }, [user]);
 
   useEffect(() => {
     if (!user?.id) return;
-
-    const loadFiles = async () => {
-      try {
-        const data = await getFiles();
-        setFiles(data.data.documents || []);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-
     void loadFiles();
   }, [user]);
 
@@ -86,7 +101,7 @@ export default function MyFiles() {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || uploading) return;
 
     if (selectedChildren.length === 0) {
       setShowAlert(true);
@@ -94,16 +109,33 @@ export default function MyFiles() {
     }
 
     try {
+      setUploading(true);
+      setFeedback({
+        tone: "loading",
+        title: "Uploading file",
+        message: "Sending the file and linking it to the selected children.",
+      });
       await uploadFile(selectedFile, selectedChildren.map(Number));
-      const data = await getFiles();
-      setFiles(data.data.documents || []);
+      await loadFiles();
       setSelectedFile(null);
       setSelectedChildren([]);
       setChildPickerValue("");
       setShowAlert(false);
+      setFeedback({
+        tone: "success",
+        title: "Upload complete",
+        message: "The file is ready and now appears in the library below.",
+      });
     } catch (error) {
       console.log(error);
       setShowAlert(false);
+      setFeedback({
+        tone: "error",
+        title: "Upload failed",
+        message: "The file was not uploaded. Try again with the same file.",
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -131,14 +163,31 @@ export default function MyFiles() {
     if (!editingFile) return;
 
     try {
+      setSavingEdit(true);
+      setFeedback({
+        tone: "loading",
+        title: "Updating file",
+        message: "Saving the child assignments for this file.",
+      });
       await updateFile(editingFile.id, editChildren.map(Number));
-      const data = await getFiles();
-      setFiles(data.data.documents || []);
+      await loadFiles();
       setEditOpen(false);
       setEditingFile(null);
       setEditChildren([]);
+      setFeedback({
+        tone: "success",
+        title: "File updated",
+        message: "The file’s child assignments were saved.",
+      });
     } catch (error) {
       console.log(error);
+      setFeedback({
+        tone: "error",
+        title: "Couldn't update file",
+        message: "The file still has its previous child assignments. Please try again.",
+      });
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -155,6 +204,12 @@ export default function MyFiles() {
     <div className="min-h-screen bg-background p-6">
       <div className="mx-auto max-w-5xl">
         <h1 className="mb-8 text-4xl font-bold">{t("myFiles")}</h1>
+
+        {feedback ? (
+          <div className="mb-6">
+            <AsyncFeedback tone={feedback.tone} title={feedback.title} message={feedback.message} />
+          </div>
+        ) : null}
 
         {showAlert ? (
           <Alert className="max-w-md border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-50">
@@ -177,6 +232,7 @@ export default function MyFiles() {
               type="file"
               onChange={handleFileChange}
               className="w-full rounded-xl border p-3"
+              disabled={uploading}
             />
           </div>
 
@@ -192,6 +248,7 @@ export default function MyFiles() {
                 onClick={handleRemoveFile}
                 className="text-red-500 hover:text-red-700"
                 aria-label={t("delete")}
+                disabled={uploading}
               >
                 <Trash2 className="h-5 w-5" />
               </button>
@@ -203,7 +260,11 @@ export default function MyFiles() {
               {t("selectChildren")}
             </label>
 
-            <Select value={childPickerValue} onValueChange={handleSelectChild}>
+            <Select
+              value={childPickerValue}
+              onValueChange={handleSelectChild}
+              disabled={childrenState !== "ready" || uploading}
+            >
               <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder={t("chooseChild")} />
               </SelectTrigger>
@@ -240,19 +301,57 @@ export default function MyFiles() {
           <button
             type="button"
             onClick={handleUpload}
-            className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-primary-foreground hover:opacity-90"
+            disabled={uploading || !selectedFile}
+            className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Upload className="h-5 w-5" />
-            {t("uploadFile")}
+            {uploading ? "Uploading..." : t("uploadFile")}
           </button>
         </div>
 
         <div>
           <h2 className="mb-6 text-2xl font-bold">{t("uploadedFiles")}</h2>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            {files.map((file) => (
-              <div key={file.id} className="rounded-2xl border bg-card p-5 shadow-md">
+          {filesState === "loading" ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              {[1, 2].map((item) => (
+                <div key={item} className="rounded-2xl border bg-card p-5 shadow-md">
+                  <div className="mb-4 h-6 w-40 animate-pulse rounded-full bg-muted" />
+                  <div className="mb-6 h-4 w-24 animate-pulse rounded-full bg-muted" />
+                  <div className="flex gap-2">
+                    <div className="h-8 w-20 animate-pulse rounded-full bg-muted" />
+                    <div className="h-8 w-24 animate-pulse rounded-full bg-muted" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {filesState === "error" ? (
+            <PageState
+              icon={AlertTriangleIcon}
+              title="Couldn't load files"
+              description="The file library did not load. Retry to see uploaded documents again."
+              actionLabel={t("tryAgain")}
+              onAction={() => {
+                void loadFiles();
+              }}
+              tone="warning"
+            />
+          ) : null}
+
+          {filesState === "ready" && files.length === 0 ? (
+            <PageState
+              icon={FileText}
+              title="No files yet"
+              description="Uploaded files will appear here once the first document is added for a child."
+            />
+          ) : null}
+
+          {filesState === "ready" && files.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              {files.map((file) => (
+                <div key={file.id} className="rounded-2xl border bg-card p-5 shadow-md">
                 <div className="mb-4 flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <FileText className="h-6 w-6" />
@@ -266,7 +365,12 @@ export default function MyFiles() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => openEditDialog(file)} aria-label={t("edit")}>
+                    <button
+                      type="button"
+                      onClick={() => openEditDialog(file)}
+                      aria-label={t("edit")}
+                      disabled={deletingId === file.id}
+                    >
                       <Edit2 />
                     </button>
 
@@ -292,9 +396,10 @@ export default function MyFiles() {
                     </span>
                   ))}
                 </div>
-              </div>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -325,7 +430,7 @@ export default function MyFiles() {
               </label>
             ))}
 
-            <button type="button" onClick={handleSaveEdit}>
+            <button type="button" onClick={handleSaveEdit} disabled={savingEdit}>
               {t("save")}
             </button>
           </DialogContent>

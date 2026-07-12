@@ -3,6 +3,7 @@ import { CheckCircle2Icon, Edit2, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
+import { AsyncFeedback } from "@/components/ui/async-feedback";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,11 +93,13 @@ export default function StoryForm() {
   const [selectedChild, setSelectedChild] = useState<number | null>(null);
   const [generatedStory, setGeneratedStory] = useState<GeneratedStoryPayload | null>(null);
   const [loading, setLoading] = useState(false);
+  const [childrenState, setChildrenState] = useState<"loading" | "ready" | "error">("loading");
   const [isEditing, setIsEditing] = useState(false);
   const [showAiEditor, setShowAiEditor] = useState(false);
   const [aiMessage, setAiMessage] = useState("");
   const [chatMessages, setChatMessages] = useState<StoryEditMessage[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [editorMessagesLoading, setEditorMessagesLoading] = useState(false);
   const [storyApproved, setStoryApproved] = useState(false);
   const [questions, setQuestions] = useState<QuestionRecord[]>([]);
   const [showAddQuestion, setShowAddQuestion] = useState(false);
@@ -104,8 +107,19 @@ export default function StoryForm() {
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
   const [editedQuestion, setEditedQuestion] = useState("");
   const [questionLoading, setQuestionLoading] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [approvingStory, setApprovingStory] = useState(false);
+  const [addingQuestion, setAddingQuestion] = useState(false);
+  const [updatingQuestionId, setUpdatingQuestionId] = useState<number | null>(null);
+  const [deletingQuestionId, setDeletingQuestionId] = useState<number | null>(null);
+  const [approvingQuestions, setApprovingQuestions] = useState(false);
   const [generationStep, setGenerationStep] = useState("");
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    tone: "loading" | "success" | "error" | "info";
+    title?: string;
+    message: string;
+  } | null>(null);
 
   useNotificationHandler({
     type: "AI_PROGRESS",
@@ -119,13 +133,16 @@ export default function StoryForm() {
 
     const load = async () => {
       try {
+        setChildrenState("loading");
         const childrenList = await getChildren();
         setChildren(childrenList.data || []);
         if (childrenList.data?.length > 0) {
           setSelectedChild(childrenList.data[0].id);
         }
+        setChildrenState("ready");
       } catch (error) {
         console.log(error);
+        setChildrenState("error");
       }
     };
 
@@ -137,6 +154,7 @@ export default function StoryForm() {
 
     const loadMessages = async () => {
       try {
+        setEditorMessagesLoading(true);
         const response = await getStoryEditMessages(generatedStory.story.id);
         setChatMessages(
           response.map((message: { role: "user" | "assistant"; content: string }) => ({
@@ -146,11 +164,18 @@ export default function StoryForm() {
         );
       } catch (error) {
         console.log(error);
+        setFeedback({
+          tone: "error",
+          title: t("aiStoryEditor"),
+          message: "Couldn't load the editing history. You can still send a new instruction.",
+        });
+      } finally {
+        setEditorMessagesLoading(false);
       }
     };
 
     void loadMessages();
-  }, [generatedStory, showAiEditor]);
+  }, [generatedStory, showAiEditor, t]);
 
   useEffect(() => {
     if (generatedStory?.story?.isApproved || generatedStory?.story?.status === "PUBLISHED") {
@@ -171,10 +196,23 @@ export default function StoryForm() {
 
   const handleGenerate = async () => {
     if (loading || generatedStory) return;
+    if (!selectedChild || !form.behavior.trim() || !form.length || !form.type) {
+      setFeedback({
+        tone: "error",
+        title: t("storyGeneratorTitle"),
+        message: "Choose a child and complete the story details before generating.",
+      });
+      return;
+    }
 
     try {
       setGenerationStep(t("storyGeneratorStarting"));
       setLoading(true);
+      setFeedback({
+        tone: "loading",
+        title: t("storyGeneratorTitle"),
+        message: "Creating the story now. You can keep reading the progress here while the AI works.",
+      });
       const response = await generateStory({
         educationalGoal: form.behavior,
         storyType: form.type,
@@ -185,8 +223,18 @@ export default function StoryForm() {
       });
       setGeneratedStory(response.data);
       setIsEditing(false);
+      setFeedback({
+        tone: "success",
+        title: "Story ready",
+        message: "The story has been generated. Review the scenes, then approve or refine them below.",
+      });
     } catch (error) {
       console.log(error);
+      setFeedback({
+        tone: "error",
+        title: "Story generation failed",
+        message: "The story could not be generated this time. Check the details and try again.",
+      });
     } finally {
       setGenerationStep("");
       setLoading(false);
@@ -199,6 +247,11 @@ export default function StoryForm() {
 
     try {
       setAiLoading(true);
+      setFeedback({
+        tone: "loading",
+        title: t("aiStoryEditor"),
+        message: "Applying your editing request and preparing an updated version of the story.",
+      });
       setChatMessages((prev) => [...prev, { role: "user", text: aiMessage }]);
 
       const response = await updateStoryWithAi(generatedStory.story.id, {
@@ -216,8 +269,18 @@ export default function StoryForm() {
         },
       ]);
       setAiMessage("");
+      setFeedback({
+        tone: "success",
+        title: "Story updated",
+        message: response.data.summaryOfChanges || t("storyEditorUpdated"),
+      });
     } catch (error) {
       console.log(error);
+      setFeedback({
+        tone: "error",
+        title: "AI edit failed",
+        message: "The AI could not update the story right now. Try a simpler instruction or send it again.",
+      });
     } finally {
       setAiLoading(false);
     }
@@ -227,6 +290,12 @@ export default function StoryForm() {
     if (!generatedStory) return;
 
     try {
+      setSavingEdit(true);
+      setFeedback({
+        tone: "loading",
+        title: "Saving edits",
+        message: "Updating the story scenes and syncing your changes.",
+      });
       const response = await updateStory(generatedStory.story.id, {
         educationalGoal: form.behavior,
         storyType: form.type,
@@ -249,8 +318,20 @@ export default function StoryForm() {
       window.setTimeout(() => {
         setShowSuccessAlert(false);
       }, 3000);
+      setFeedback({
+        tone: "success",
+        title: "Changes saved",
+        message: "Your manual edits were saved successfully.",
+      });
     } catch (error) {
       console.log(error);
+      setFeedback({
+        tone: "error",
+        title: "Couldn't save edits",
+        message: "The story changes were not saved. Try again to keep your updates.",
+      });
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -258,9 +339,28 @@ export default function StoryForm() {
     if (!generatedStory) return;
 
     try {
+      setApprovingStory(true);
+      setFeedback({
+        tone: "loading",
+        title: "Approving story",
+        message: "Publishing the story so question generation can continue.",
+      });
       await approveStory(generatedStory.story.id);
+      setFeedback({
+        tone: "success",
+        title: "Story approved",
+        message: "The story is approved. You can generate the child questions next.",
+      });
     } catch (error) {
       console.log(error);
+      setFeedback({
+        tone: "error",
+        title: "Approval failed",
+        message: "The story was not approved. Please try again.",
+      });
+      return;
+    } finally {
+      setApprovingStory(false);
     }
 
     const approvedStories = JSON.parse(localStorage.getItem("stories") || "[]") as unknown[];
@@ -277,10 +377,25 @@ export default function StoryForm() {
 
     try {
       setQuestionLoading(true);
+      setFeedback({
+        tone: "loading",
+        title: "Generating questions",
+        message: "Creating reflection questions for this story. This can take a few seconds.",
+      });
       const response = await generateQuestions(generatedStory.story.id);
       setQuestions(response.data);
+      setFeedback({
+        tone: "success",
+        title: "Questions ready",
+        message: "The generated questions are ready for review and editing.",
+      });
     } catch (error) {
       console.log(error);
+      setFeedback({
+        tone: "error",
+        title: "Question generation failed",
+        message: "Questions could not be generated. Try again when you’re ready.",
+      });
     } finally {
       setQuestionLoading(false);
     }
@@ -290,34 +405,73 @@ export default function StoryForm() {
     if (!generatedStory || !newQuestion.trim()) return;
 
     try {
+      setAddingQuestion(true);
       const response = await addQuestions(generatedStory.story.id, { question: newQuestion });
       setQuestions((prev) => [...prev, response.data]);
       setNewQuestion("");
       setShowAddQuestion(false);
+      setFeedback({
+        tone: "success",
+        title: "Question added",
+        message: "The new question is now part of the review list.",
+      });
     } catch (error) {
       console.log(error);
+      setFeedback({
+        tone: "error",
+        title: "Couldn't add question",
+        message: "The new question was not saved. Try adding it again.",
+      });
+    } finally {
+      setAddingQuestion(false);
     }
   };
 
   const handleDeleteQuestion = async (questionId: number) => {
     try {
+      setDeletingQuestionId(questionId);
       await deleteQuestion(questionId);
       setQuestions((prev) => prev.filter((question) => question.id !== questionId));
+      setFeedback({
+        tone: "success",
+        title: "Question removed",
+        message: "The question has been removed from this story.",
+      });
     } catch (error) {
       console.log(error);
+      setFeedback({
+        tone: "error",
+        title: "Couldn't remove question",
+        message: "The question is still here because the delete request failed.",
+      });
+    } finally {
+      setDeletingQuestionId(null);
     }
   };
 
   const handleUpdateQuestion = async (questionId: number) => {
     try {
+      setUpdatingQuestionId(questionId);
       const response = await updateQuestion(questionId, { question: editedQuestion });
       setQuestions((prev) =>
         prev.map((question) => (question.id === questionId ? response.data : question)),
       );
       setEditingQuestionId(null);
       setEditedQuestion("");
+      setFeedback({
+        tone: "success",
+        title: "Question updated",
+        message: "Your edits to the question were saved.",
+      });
     } catch (error) {
       console.log(error);
+      setFeedback({
+        tone: "error",
+        title: "Couldn't update question",
+        message: "The edited question was not saved. Please try again.",
+      });
+    } finally {
+      setUpdatingQuestionId(null);
     }
   };
 
@@ -325,10 +479,29 @@ export default function StoryForm() {
     if (!generatedStory) return;
 
     try {
-      await approveQuestions(generatedStory.story.id);
-      navigate(`/my-stories/${generatedStory.story.childId}`);
+      setApprovingQuestions(true);
+      setFeedback({
+        tone: "loading",
+        title: "Approving questions",
+        message: "Finalizing the questions and opening the child story library next.",
+      });
+      const response = await approveQuestions(generatedStory.story.id);
+      const childId = response.data?.childId ?? generatedStory.story.childId;
+
+      if (!childId) {
+        throw new Error("Missing child id after question approval");
+      }
+
+      navigate(`/my-stories/${childId}`);
     } catch (error) {
       console.log(error);
+      setFeedback({
+        tone: "error",
+        title: "Couldn't approve questions",
+        message: "The questions are still in review because approval did not finish.",
+      });
+    } finally {
+      setApprovingQuestions(false);
     }
   };
 
@@ -349,12 +522,36 @@ export default function StoryForm() {
             </p>
           </div>
 
-          <div className={`space-y-5 ${loading ? "pointer-events-none opacity-70" : ""}`}>
+          <div className="space-y-5">
+            {feedback ? (
+              <AsyncFeedback
+                tone={feedback.tone}
+                title={feedback.title}
+                message={feedback.message}
+              />
+            ) : null}
+
+            {childrenState === "loading" ? (
+              <AsyncFeedback
+                tone="loading"
+                title="Loading children"
+                message="Getting child profiles so the story can be created for the right reader."
+              />
+            ) : null}
+
+            {childrenState === "error" ? (
+              <AsyncFeedback
+                tone="error"
+                title="Couldn't load children"
+                message="The child list did not load. Refresh the page and try again."
+              />
+            ) : null}
+
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-semibold">{t("chooseChild")}</label>
                 <Select
-                  disabled={loading}
+                  disabled={loading || childrenState !== "ready"}
                   value={selectedChild ? String(selectedChild) : ""}
                   onValueChange={(value) => setSelectedChild(Number(value))}
                 >
@@ -460,12 +657,12 @@ export default function StoryForm() {
                 onClick={handleGenerate}
                 disabled={loading || generatedStory !== null}
                 className="sm:min-w-[180px]"
+                loading={loading}
+                loadingText={t("storyGeneratorGenerating")}
               >
-                {loading
-                  ? t("storyGeneratorGenerating")
-                  : generatedStory
-                    ? t("storyGeneratorAlreadyGenerated")
-                    : t("generateStory")}
+                {generatedStory
+                  ? t("storyGeneratorAlreadyGenerated")
+                  : t("generateStory")}
               </Button>
             </div>
 
@@ -552,33 +749,41 @@ export default function StoryForm() {
             <div className="mt-6 flex flex-wrap gap-3">
               {isEditing ? (
                 <>
-                  <Button onClick={handleSaveEdit}>{t("saveEdit")}</Button>
-                  <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  <Button loading={savingEdit} onClick={handleSaveEdit} loadingText={t("saving")}>
+                    {t("saveEdit")}
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsEditing(false)} disabled={savingEdit}>
                     {t("cancel")}
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button onClick={() => setIsEditing(true)}>{t("editStory")}</Button>
-                  <Button variant="outline" onClick={() => setShowAiEditor(true)}>
+                  <Button onClick={() => setIsEditing(true)} disabled={approvingStory || questionLoading}>
+                    {t("editStory")}
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowAiEditor(true)} disabled={approvingStory || questionLoading}>
                     <Wand2 className="h-4 w-4" />
                     {t("editUsingAI")}
                   </Button>
 
                   {!storyApproved ? (
-                    <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-600/90">
+                    <Button
+                      onClick={handleApprove}
+                      className="bg-green-600 hover:bg-green-600/90"
+                      loading={approvingStory}
+                    >
                       {t("approveStory")}
                     </Button>
                   ) : (
                     <Button
                       onClick={handleGenerateQuestions}
                       disabled={questionLoading || questions.length > 0}
+                      loading={questionLoading}
+                      loadingText={t("storyGeneratingQuestions")}
                     >
-                      {questionLoading
-                        ? t("storyGeneratingQuestions")
-                        : questions.length > 0
-                          ? t("storyQuestionsAlreadyGenerated")
-                          : t("storyGenerateQuestions")}
+                      {questions.length > 0
+                        ? t("storyQuestionsAlreadyGenerated")
+                        : t("storyGenerateQuestions")}
                     </Button>
                   )}
                 </>
@@ -605,12 +810,22 @@ export default function StoryForm() {
                         value={editedQuestion}
                         onChange={(event) => setEditedQuestion(event.target.value)}
                         className="w-full rounded-xl border border-input bg-background p-3 text-foreground"
+                        disabled={updatingQuestionId === question.id}
                       />
                       <div className="mt-3 flex gap-2">
-                        <Button size="sm" onClick={() => handleUpdateQuestion(question.id)}>
+                        <Button
+                          size="sm"
+                          onClick={() => handleUpdateQuestion(question.id)}
+                          loading={updatingQuestionId === question.id}
+                        >
                           {t("save")}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditingQuestionId(null)}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingQuestionId(null)}
+                          disabled={updatingQuestionId === question.id}
+                        >
                           {t("cancel")}
                         </Button>
                       </div>
@@ -627,6 +842,7 @@ export default function StoryForm() {
                             setEditingQuestionId(question.id);
                             setEditedQuestion(question.question);
                           }}
+                          disabled={deletingQuestionId === question.id}
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
@@ -635,6 +851,7 @@ export default function StoryForm() {
                           size="icon"
                           variant="outline"
                           onClick={() => handleDeleteQuestion(question.id)}
+                          loading={deletingQuestionId === question.id}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -652,10 +869,13 @@ export default function StoryForm() {
                   onChange={(event) => setNewQuestion(event.target.value)}
                   className="w-full rounded-xl border border-input bg-background p-3 text-foreground"
                   placeholder={t("storyNewQuestionPlaceholder")}
+                  disabled={addingQuestion}
                 />
                 <div className="mt-3 flex gap-2">
-                  <Button onClick={handleAddQuestion}>{t("save")}</Button>
-                  <Button variant="outline" onClick={() => setShowAddQuestion(false)}>
+                  <Button onClick={handleAddQuestion} loading={addingQuestion}>
+                    {t("save")}
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowAddQuestion(false)} disabled={addingQuestion}>
                     {t("cancel")}
                   </Button>
                 </div>
@@ -666,7 +886,11 @@ export default function StoryForm() {
               </Button>
             )}
 
-            <Button className="mt-6 bg-green-600 hover:bg-green-600/90" onClick={handleApproveQuestions}>
+            <Button
+              className="mt-6 bg-green-600 hover:bg-green-600/90"
+              onClick={handleApproveQuestions}
+              loading={approvingQuestions}
+            >
               {t("storyApproveQuestions")}
             </Button>
             </div>
@@ -692,6 +916,22 @@ export default function StoryForm() {
           </div>
 
           <div className="flex-1 space-y-4 overflow-y-auto p-4">
+            {editorMessagesLoading ? (
+              <AsyncFeedback
+                tone="loading"
+                title="Loading AI editor"
+                message="Fetching the previous editing conversation for this story."
+              />
+            ) : null}
+
+            {!editorMessagesLoading && chatMessages.length === 0 ? (
+              <AsyncFeedback
+                tone="info"
+                title="No editing history yet"
+                message="Send the first instruction and the AI editor will start keeping the conversation here."
+              />
+            ) : null}
+
             {chatMessages.map((message, index) => (
               <div
                 key={`${message.role}-${index}`}
@@ -727,7 +967,11 @@ export default function StoryForm() {
                 }}
               />
 
-              <Button onClick={handleEditWithAi} disabled={aiLoading || !aiMessage.trim()}>
+              <Button
+                onClick={handleEditWithAi}
+                disabled={aiLoading || !aiMessage.trim()}
+                loading={aiLoading}
+              >
                 {t("send")}
               </Button>
             </div>

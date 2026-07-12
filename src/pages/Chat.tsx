@@ -10,6 +10,7 @@ import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatTopControls from "@/components/chat/ChatTopControls";
 import JourneyMessage from "@/components/chat/JourneyMessage";
 import MessageBubble, { type ChatAttachment } from "@/components/chat/MessageBubble";
+import { AsyncFeedback } from "@/components/ui/async-feedback";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotificationHandler } from "@/hooks/useFirebaseNotifications";
@@ -115,6 +116,7 @@ const Chat = () => {
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [streaming, setStreaming] = useState(false);
+  const [tokenLoading, setTokenLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
   const [mode, setMode] = useState<"normal" | "journey" | "drawing">("normal");
@@ -123,10 +125,20 @@ const Chat = () => {
   const [drawingLoading, setDrawingLoading] = useState(false);
   const [drawingFinished, setDrawingFinished] = useState(false);
   const [drawingStatus, setDrawingStatus] = useState("");
+  const [chatFeedback, setChatFeedback] = useState<{
+    tone: "loading" | "success" | "error" | "info";
+    title?: string;
+    message: string;
+  } | null>(null);
   const [navbarHeight, setNavbarHeight] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<{ aborted: boolean }>({ aborted: false });
+  const streamAbortControllerRef = useRef<AbortController | null>(null);
+  const lastAttemptRef = useRef<{ text: string; files: File[] } | null>(null);
+  const activeConversationRef = useRef<number | null>(null);
+  const pendingConversationRef = useRef<number | null>(null);
+  const historyRequestRef = useRef(0);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -256,53 +268,60 @@ const Chat = () => {
     [t],
   );
 
-  useNotificationHandler({
-    type: "AI_PROGRESS",
-    handler: (payload) => {
-      setDrawingStatus(payload.data?.step || "");
-    },
-  });
+  const mapMessagesFromHistory = useCallback(
+    (loadedMessages: AskMessage[]): UiMessage[] =>
+      loadedMessages.flatMap((message) => [
+        {
+          id: `q_${message.id}`,
+          role: "user" as const,
+          content: message.question,
+          attachments: createPersistedAttachments(message),
+        },
+        {
+          id: `a_${message.id}`,
+          role: "assistant" as const,
+          content: message.answer,
+          audioUrl: message.audioUrl,
+          imageUrl: message.imageUrl,
+          responseMode: message.responseMode,
+          journeyData: message.journeyData,
+        },
+      ]),
+    [createPersistedAttachments],
+  );
 
-  useEffect(() => {
-    void getTokenStats().then((response) => {
-      setTokenBalance(response.data.tokenBalance);
-    });
-  }, []);
+  const loadConversationState = useCallback(
+    async (
+      conversationId: number,
+      options?: {
+        preserveOptimistic?: boolean;
+        showLoading?: boolean;
+      },
+    ) => {
+      const preserveOptimistic =
+        options?.preserveOptimistic && pendingConversationRef.current === conversationId;
+      const requestId = ++historyRequestRef.current;
 
-  useEffect(() => {
-    if (!user) return;
-
-    (async () => {
-      try {
-        const list = await listConversations(user.id);
-        setConversations(list);
-      } catch {
-        toast.error(t("couldntLoadChats"));
-      } finally {
-        setLoadingConvos(false);
+      if (options?.showLoading !== false && !preserveOptimistic) {
+        setLoadingMsgs(true);
       }
-    })();
-  }, [t, user]);
 
-  useEffect(() => {
-    if (routeConvoId) {
-      setActiveId(Number(routeConvoId));
-    } else if (conversations.length > 0) {
-      setActiveId(conversations[0].id);
-    }
-  }, [routeConvoId, conversations]);
-
-  useEffect(() => {
-    if (!activeId || streaming) return;
-
-    setLoadingMsgs(true);
-
-    (async () => {
       try {
         const [loadedMessages, drawingSession] = await Promise.all([
-          listMessages(activeId),
-          getDrawingStorySession(activeId),
+          listMessages(conversationId),
+          getDrawingStorySession(conversationId),
         ]);
+
+        if (
+          requestId !== historyRequestRef.current ||
+          activeConversationRef.current !== conversationId
+        ) {
+          return;
+        }
+
+        if (preserveOptimistic && pendingConversationRef.current === conversationId) {
+          return;
+        }
 
         if (CHAT_DEBUG) {
           console.debug(
@@ -316,25 +335,7 @@ const Chat = () => {
           );
         }
 
-        setMessages(
-          loadedMessages.flatMap((message) => [
-            {
-              id: `q_${message.id}`,
-              role: "user",
-              content: message.question,
-              attachments: createPersistedAttachments(message),
-            },
-            {
-              id: `a_${message.id}`,
-              role: "assistant",
-              content: message.answer,
-              audioUrl: message.audioUrl,
-              imageUrl: message.imageUrl,
-              responseMode: message.responseMode,
-              journeyData: message.journeyData,
-            },
-          ]),
-        );
+        setMessages(mapMessagesFromHistory(loadedMessages));
 
         if (drawingSession) {
           setMode("drawing");
@@ -346,12 +347,107 @@ const Chat = () => {
           resetDrawingState();
         }
       } catch {
+        if (
+          requestId !== historyRequestRef.current ||
+          activeConversationRef.current !== conversationId
+        ) {
+          return;
+        }
+
         toast.error(t("couldntLoadMessages"));
+        setChatFeedback({
+          tone: "error",
+          title: "Couldn't load messages",
+          message: "This conversation did not load correctly. Try choosing it again or start a fresh chat.",
+        });
       } finally {
-        setLoadingMsgs(false);
+        if (
+          requestId === historyRequestRef.current &&
+          activeConversationRef.current === conversationId
+        ) {
+          setLoadingMsgs(false);
+        }
+      }
+    },
+    [mapMessagesFromHistory, resetDrawingState, t],
+  );
+
+  const scheduleConversationSync = useCallback(
+    (conversationId: number, delayMs = 0) => {
+      window.setTimeout(() => {
+        void loadConversationState(conversationId, { showLoading: false }).finally(() => {
+          if (pendingConversationRef.current === conversationId) {
+            pendingConversationRef.current = null;
+          }
+        });
+      }, delayMs);
+    },
+    [loadConversationState],
+  );
+
+  useNotificationHandler({
+    type: "AI_PROGRESS",
+    handler: (payload) => {
+      setDrawingStatus(payload.data?.step || "");
+    },
+  });
+
+  useEffect(() => {
+    const loadTokenBalance = async () => {
+      try {
+        setTokenLoading(true);
+        const response = await getTokenStats();
+        setTokenBalance(response.data.tokenBalance);
+      } catch {
+        setChatFeedback({
+          tone: "error",
+          title: "Couldn't load token balance",
+          message: "The chat still works, but the balance indicator could not be refreshed right now.",
+        });
+      } finally {
+        setTokenLoading(false);
+      }
+    };
+
+    void loadTokenBalance();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    (async () => {
+      try {
+        const list = await listConversations(user.id);
+        setConversations(list);
+      } catch {
+        toast.error(t("couldntLoadChats"));
+        setChatFeedback({
+          tone: "error",
+          title: "Couldn't load chats",
+          message: "Your recent conversations are unavailable right now. You can still start a new chat.",
+        });
+      } finally {
+        setLoadingConvos(false);
       }
     })();
-  }, [activeId, createPersistedAttachments, resetDrawingState, streaming, t]);
+  }, [t, user]);
+
+  useEffect(() => {
+    activeConversationRef.current = activeId;
+  }, [activeId]);
+
+  useEffect(() => {
+    if (routeConvoId) {
+      setActiveId(Number(routeConvoId));
+    } else if (conversations.length > 0) {
+      setActiveId(conversations[0].id);
+    }
+  }, [routeConvoId, conversations]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    void loadConversationState(activeId, { preserveOptimistic: true });
+  }, [activeId, loadConversationState]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -388,6 +484,7 @@ const Chat = () => {
   }, []);
 
   const handleNew = useCallback(() => {
+    pendingConversationRef.current = null;
     setActiveId(null);
     setMessages([]);
     resetDrawingState();
@@ -399,6 +496,7 @@ const Chat = () => {
         await dbDeleteConversation(id);
         setConversations((prev) => prev.filter((conversation) => conversation.id !== id));
         if (activeId === id) {
+          pendingConversationRef.current = null;
           setActiveId(null);
           setMessages([]);
           resetDrawingState();
@@ -423,6 +521,11 @@ const Chat = () => {
 
       try {
         setStreaming(true);
+        setChatFeedback({
+          tone: "loading",
+          title: "Continuing drawing story",
+          message: drawingStatus || "Sparky is turning the new drawing details into the next part of the story.",
+        });
         const response = await sendDrawingStoryMessage({
           conversationId: drawingConversationId,
           message: text,
@@ -431,6 +534,11 @@ const Chat = () => {
 
         if (response.data.finished) {
           setDrawingFinished(true);
+          setChatFeedback({
+            tone: "success",
+            title: "Drawing story ready",
+            message: "The drawing conversation is complete. You can turn it into a finished story below.",
+          });
         } else {
           setMessages((prev) => [
             ...prev,
@@ -440,10 +548,17 @@ const Chat = () => {
               content: response.data.reply,
             },
           ]);
+          setChatFeedback(null);
         }
       } catch (error) {
         console.error(error);
         toast.error(t("chatSendFailed"));
+        lastAttemptRef.current = { text, files };
+        setChatFeedback({
+          tone: "error",
+          title: "Message not sent",
+          message: "The drawing story reply did not go through. Retry when you’re ready.",
+        });
       } finally {
         setStreaming(false);
       }
@@ -456,13 +571,25 @@ const Chat = () => {
 
     if (!conversationId) {
       try {
+        setChatFeedback({
+          tone: "loading",
+          title: "Starting chat",
+          message: "Creating a new conversation before sending your message.",
+        });
         const titleSeed = text.trim() || files[0]?.name || t("chatNewConversation");
         const conversation = await createConversation(titleSeed.slice(0, 40));
+        pendingConversationRef.current = conversation.id;
         setConversations((prev) => [conversation, ...prev]);
         setActiveId(conversation.id);
         conversationId = conversation.id;
       } catch {
         toast.error(t("couldntStartChat"));
+        lastAttemptRef.current = { text, files };
+        setChatFeedback({
+          tone: "error",
+          title: "Couldn't start chat",
+          message: "The conversation was not created. Retry to send the same message again.",
+        });
         return;
       }
     }
@@ -488,6 +615,18 @@ const Chat = () => {
 
     setStreaming(true);
     abortRef.current = { aborted: false };
+    streamAbortControllerRef.current?.abort();
+    streamAbortControllerRef.current = new AbortController();
+    pendingConversationRef.current = conversationId;
+    lastAttemptRef.current = { text, files };
+    setChatFeedback({
+      tone: "loading",
+      title: mode === "journey" ? "Sparky is preparing a guided reply" : "Sparky is thinking",
+      message:
+        mode === "drawing"
+          ? drawingStatus || "Working on the drawing-based story response."
+          : "Your message was sent. You can keep reading here while the response streams in.",
+    });
 
     let accumulated = "";
 
@@ -496,6 +635,7 @@ const Chat = () => {
       conversationId,
       files,
       mode: mode === "drawing" ? "normal" : mode,
+      signal: streamAbortControllerRef.current.signal,
       onDelta: (chunk) => {
         if (abortRef.current.aborted) return;
         accumulated += chunk;
@@ -507,16 +647,41 @@ const Chat = () => {
       },
       onDone: () => {
         setStreaming(false);
+        streamAbortControllerRef.current = null;
+        setChatFeedback(null);
         setMessages((prev) =>
           prev.map((message) =>
             message.id === assistantTmpId ? { ...message, streaming: false } : message,
           ),
         );
+        scheduleConversationSync(conversationId);
+      },
+      onAbort: () => {
+        setStreaming(false);
+        streamAbortControllerRef.current = null;
+        setChatFeedback({
+          tone: "info",
+          title: "Response stopped",
+          message: "Generation stopped. The partial reply was kept in this conversation.",
+        });
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === assistantTmpId ? { ...message, streaming: false } : message,
+          ),
+        );
+        scheduleConversationSync(conversationId, 250);
       },
       onError: (message) => {
         setStreaming(false);
+        streamAbortControllerRef.current = null;
+        pendingConversationRef.current = null;
         setMessages((prev) => prev.filter((item) => item.id !== assistantTmpId));
         toast.error(message);
+        setChatFeedback({
+          tone: "error",
+          title: "Reply interrupted",
+          message: "The response stopped before finishing. Retry the last message to keep going.",
+        });
       },
       onAudio: (audioUrl) => {
         setMessages((prev) =>
@@ -537,15 +702,17 @@ const Chat = () => {
 
   const handleStop = () => {
     abortRef.current.aborted = true;
-    setStreaming(false);
-    setMessages((prev) =>
-      prev.map((message) => (message.streaming ? { ...message, streaming: false } : message)),
-    );
+    streamAbortControllerRef.current?.abort();
   };
 
   const handleStartDrawing = async (file: File) => {
     try {
       setDrawingLoading(true);
+      setChatFeedback({
+        tone: "loading",
+        title: "Analyzing drawing",
+        message: "Uploading the drawing and preparing the first story prompt.",
+      });
 
       const response = await startDrawingStory(file);
       setDrawingConversationId(response.data.conversationId);
@@ -572,9 +739,19 @@ const Chat = () => {
           content: response.data.reply,
         },
       ]);
+      setChatFeedback({
+        tone: "success",
+        title: "Drawing ready",
+        message: "The drawing is loaded. Keep chatting to shape the story scene by scene.",
+      });
     } catch (error) {
       console.error(error);
       toast.error(t("chatAnalyzeDrawingFailed"));
+      setChatFeedback({
+        tone: "error",
+        title: "Couldn't analyze drawing",
+        message: "The drawing upload did not finish. Try selecting the image again.",
+      });
     } finally {
       setDrawingLoading(false);
     }
@@ -586,13 +763,28 @@ const Chat = () => {
     try {
       setDrawingStatus(t("generating"));
       setDrawingLoading(true);
+      setChatFeedback({
+        tone: "loading",
+        title: "Creating story",
+        message: "Turning the drawing conversation into a full story for the library.",
+      });
       await generateStoryFromDrawing({
         conversationId: drawingConversationId,
       });
       toast.success(t("chatStoryCreated"));
+      setChatFeedback({
+        tone: "success",
+        title: "Story created",
+        message: "The drawing story is finished and opening in the library next.",
+      });
       navigate("/my-stories");
     } catch {
       toast.error(t("chatGenerateStoryFailed"));
+      setChatFeedback({
+        tone: "error",
+        title: "Story creation failed",
+        message: "The drawing story could not be finished. Retry from the same conversation.",
+      });
     } finally {
       setDrawingLoading(false);
       setDrawingStatus("");
@@ -600,6 +792,7 @@ const Chat = () => {
   };
 
   const showEmpty = !loadingMsgs && messages.length === 0;
+  const showRetryForLastAttempt = Boolean(lastAttemptRef.current) && chatFeedback?.tone === "error";
   const chatViewportStyle = {
     height: `calc(100dvh - ${navbarHeight}px)`,
   };
@@ -652,6 +845,32 @@ const Chat = () => {
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-6 sm:px-6">
             <div className="mx-auto max-w-3xl space-y-4">
+              {tokenLoading ? (
+                <AsyncFeedback
+                  tone="loading"
+                  title="Preparing chat"
+                  message="Checking token balance and getting everything ready for your next message."
+                />
+              ) : null}
+
+              {chatFeedback ? (
+                <AsyncFeedback
+                  tone={chatFeedback.tone}
+                  title={chatFeedback.title}
+                  message={chatFeedback.message}
+                  actionLabel={showRetryForLastAttempt ? t("tryAgain") : undefined}
+                  onAction={
+                    showRetryForLastAttempt
+                      ? () => {
+                          const attempt = lastAttemptRef.current;
+                          if (!attempt) return;
+                          void handleSend(attempt.text, attempt.files);
+                        }
+                      : undefined
+                  }
+                />
+              ) : null}
+
               {loadingMsgs ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map((item) => (

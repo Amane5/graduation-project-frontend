@@ -4,6 +4,8 @@ import { BookOpen, ChevronLeft, ChevronRight, Mic, Trophy, Volume2 } from "lucid
 import Confetti from "react-confetti";
 import { useTranslation } from "react-i18next";
 
+import { AsyncFeedback } from "@/components/ui/async-feedback";
+import { PageState } from "@/components/ui/page-state";
 import { submitAnswers } from "@/lib/questions";
 import {
   generateQuestionAudio,
@@ -55,6 +57,14 @@ export default function MyStories() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [playingAudioId, setPlayingAudioId] = useState<number | null>(null);
   const [recordingQuestionId, setRecordingQuestionId] = useState<number | null>(null);
+  const [transcribingQuestionId, setTranscribingQuestionId] = useState<number | null>(null);
+  const [storiesState, setStoriesState] = useState<"loading" | "ready" | "error">("loading");
+  const [submittingAnswers, setSubmittingAnswers] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    tone: "loading" | "success" | "error" | "info";
+    title?: string;
+    message: string;
+  } | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -86,24 +96,52 @@ export default function MyStories() {
         type: "audio/webm",
       });
 
-      const response = await speechToTextQuestion(questionId, blob);
+      try {
+        setTranscribingQuestionId(questionId);
+        setFeedback({
+          tone: "loading",
+          title: "Transcribing answer",
+          message: "Turning the recorded voice answer into text for this question.",
+        });
+        const response = await speechToTextQuestion(questionId, blob);
 
-      setAnswers((prev) => ({
-        ...prev,
-        [questionId]: response.data.text,
-      }));
-
-      setRecordingQuestionId(null);
+        setAnswers((prev) => ({
+          ...prev,
+          [questionId]: response.data.text,
+        }));
+        setFeedback({
+          tone: "success",
+          title: "Answer ready",
+          message: "The recorded answer was transcribed and added to the question.",
+        });
+      } catch (error) {
+        console.log(error);
+        setFeedback({
+          tone: "error",
+          title: "Couldn't transcribe recording",
+          message: "The recording was captured, but the transcript could not be generated. You can record again or type the answer.",
+        });
+      } finally {
+        setRecordingQuestionId(null);
+        setTranscribingQuestionId(null);
+      }
     };
   };
 
   useEffect(() => {
     const load = async () => {
-      const response = childId
-        ? await getChildStories(Number(childId))
-        : await getMyStories();
+      try {
+        setStoriesState("loading");
+        const response = childId
+          ? await getChildStories(Number(childId))
+          : await getMyStories();
 
-      setStories(response.data);
+        setStories(response.data);
+        setStoriesState("ready");
+      } catch (error) {
+        console.log(error);
+        setStoriesState("error");
+      }
     };
 
     void load();
@@ -156,6 +194,12 @@ export default function MyStories() {
     if (!selectedStory || answersSubmitted) return;
 
     try {
+      setSubmittingAnswers(true);
+      setFeedback({
+        tone: "loading",
+        title: "Submitting answers",
+        message: "Saving all answers and preparing the story celebration.",
+      });
       await submitAnswers(selectedStory.id, {
         answers: selectedStory.questions.map((question) => ({
           questionId: question.id,
@@ -169,14 +213,31 @@ export default function MyStories() {
       window.setTimeout(() => {
         setShowConfetti(false);
       }, 5000);
+      setFeedback({
+        tone: "success",
+        title: "Answers submitted",
+        message: "The answers were saved successfully.",
+      });
     } catch (error) {
       console.log(error);
+      setFeedback({
+        tone: "error",
+        title: "Couldn't submit answers",
+        message: "The answers were not saved. Retry once you are ready.",
+      });
+    } finally {
+      setSubmittingAnswers(false);
     }
   };
 
   const handlePlayQuestionAudio = async (questionId: number) => {
     try {
       setPlayingAudioId(questionId);
+      setFeedback({
+        tone: "loading",
+        title: "Preparing audio",
+        message: "Generating the spoken version of this question.",
+      });
 
       const response = await generateQuestionAudio(questionId);
       const audio = new Audio(resolveAssetUrl(response.data.audioUrl));
@@ -184,10 +245,16 @@ export default function MyStories() {
       void audio.play();
       audio.onended = () => {
         setPlayingAudioId(null);
+        setFeedback(null);
       };
     } catch (error) {
       console.log(error);
       setPlayingAudioId(null);
+      setFeedback({
+        tone: "error",
+        title: "Couldn't play question audio",
+        message: "The audio version of this question could not be generated. Please try again.",
+      });
     }
   };
 
@@ -210,7 +277,24 @@ export default function MyStories() {
             </div>
           </div>
 
-          {stories.length === 0 ? (
+          {storiesState === "loading" ? (
+            <AsyncFeedback
+              tone="loading"
+              title="Loading stories"
+              message="Getting the latest stories and questions for this child."
+            />
+          ) : null}
+
+          {storiesState === "error" ? (
+            <PageState
+              icon={BookOpen}
+              title="Couldn't load stories"
+              description="The story library did not load correctly. Refresh the page to try again."
+              tone="warning"
+            />
+          ) : null}
+
+          {storiesState === "ready" && stories.length === 0 ? (
             <div className="rounded-[2rem] border border-dashed border-border/70 bg-card/70 p-10 text-center shadow-soft">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <BookOpen className="h-7 w-7" />
@@ -220,7 +304,9 @@ export default function MyStories() {
                 {t("storyLibraryEmptyDescription")}
               </p>
             </div>
-          ) : (
+          ) : null}
+
+          {storiesState === "ready" && stories.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {stories.map((story) => (
                 <button
@@ -261,7 +347,7 @@ export default function MyStories() {
                 </button>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     );
@@ -294,6 +380,12 @@ export default function MyStories() {
       ) : null}
 
       <div className="mx-auto max-w-6xl">
+        {feedback ? (
+          <div className="mb-4">
+            <AsyncFeedback tone={feedback.tone} title={feedback.title} message={feedback.message} />
+          </div>
+        ) : null}
+
         <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <button
             type="button"
@@ -434,6 +526,7 @@ export default function MyStories() {
                           ? stopRecording(question.id)
                           : startRecording(question.id)
                       }
+                      disabled={transcribingQuestionId === question.id}
                       className="inline-flex items-center gap-2 rounded-full bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive"
                     >
                       <Mic className="h-4 w-4" />
@@ -446,6 +539,7 @@ export default function MyStories() {
                   <textarea
                     className="min-h-[120px] w-full rounded-2xl border border-input bg-background p-3 text-foreground"
                     value={answers[question.id] || ""}
+                    disabled={submittingAnswers || transcribingQuestionId === question.id}
                     onChange={(event) =>
                       setAnswers((prev) => ({
                         ...prev,
@@ -462,12 +556,16 @@ export default function MyStories() {
               <p className="text-sm text-muted-foreground">{t("storyQuestionsFooter")}</p>
               <button
                 type="button"
-                disabled={answersSubmitted}
+                disabled={answersSubmitted || submittingAnswers}
                 onClick={handleSubmitAnswers}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-600 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Trophy className="h-4 w-4" />
-                {answersSubmitted ? t("storyAnswersSubmitted") : t("storySubmitAnswers")}
+                {submittingAnswers
+                  ? "Submitting..."
+                  : answersSubmitted
+                    ? t("storyAnswersSubmitted")
+                    : t("storySubmitAnswers")}
               </button>
             </div>
           </div>

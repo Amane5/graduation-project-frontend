@@ -81,10 +81,12 @@ export async function streamChat({
   files,
   onDelta,
   onDone,
+  onAbort,
   onError,
   onAudio,
   onImage,
   mode = "normal",
+  signal,
 }: {
   question: string;
   conversationId?: number;
@@ -95,9 +97,11 @@ export async function streamChat({
     audioUrl?: string;
     imageUrl?: string;
   }) => void;
+  onAbort?: () => void;
   onAudio?: (audioUrl: string) => void;
   onImage?: (imageUrl: string) => void;
   onError: (msg: string) => void;
+  signal?: AbortSignal;
 }) {
   const url = `${import.meta.env.VITE_API_URL}/ai/stream`;
 
@@ -121,9 +125,14 @@ export async function streamChat({
     resp = await fetchWithSession(url, {
       method: "POST",
       body: formData,
+      signal,
     });
     console.log("STREAM RESPONSE", resp);
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      onAbort?.();
+      return;
+    }
     onError("Network hiccup");
     return;
   }
@@ -139,49 +148,59 @@ export async function streamChat({
   let buffer = "";
   let currentEvent = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
 
-    if (done) break;
+      if (done) break;
 
-    buffer += decoder.decode(value, {
-      stream: true,
-    });
+      buffer += decoder.decode(value, {
+        stream: true,
+      });
 
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
 
-    for (const line of lines) {
-      const trimmed = line.trim();
+      for (const line of lines) {
+        const trimmed = line.trim();
 
-      if (!trimmed) continue;
+        if (!trimmed) continue;
 
-      if (trimmed.startsWith("event: ")) {
-        currentEvent = trimmed.replace("event: ", "");
-      }
+        if (trimmed.startsWith("event: ")) {
+          currentEvent = trimmed.replace("event: ", "");
+        }
 
-      if (trimmed.startsWith("data: ")) {
-        const raw = trimmed.replace("data: ", "");
+        if (trimmed.startsWith("data: ")) {
+          const raw = trimmed.replace("data: ", "");
 
-        if (currentEvent === "text") {
-          try {
-            const chunk = JSON.parse(raw);
-            onDelta(chunk);
-          } catch {
-            onDelta(raw);
+          if (currentEvent === "text") {
+            try {
+              const chunk = JSON.parse(raw);
+              onDelta(chunk);
+            } catch {
+              onDelta(raw);
+            }
+          } else if (currentEvent === "audio") {
+            const data = JSON.parse(raw);
+            onAudio?.(data.audioUrl);
+          } else if (currentEvent === "image") {
+            const data = JSON.parse(raw);
+            onImage?.(data.imageUrl);
+          } else if (currentEvent === "done") {
+            onDone();
+            return;
           }
-        } else if (currentEvent === "audio") {
-          const data = JSON.parse(raw);
-          onAudio?.(data.audioUrl);
-        } else if (currentEvent === "image") {
-          const data = JSON.parse(raw);
-          onImage?.(data.imageUrl);
-        } else if (currentEvent === "done") {
-          onDone();
-          return;
         }
       }
     }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      onAbort?.();
+      return;
+    }
+
+    onError("Stream failed");
+    return;
   }
 
   onDone();

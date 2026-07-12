@@ -73,7 +73,8 @@ export const getStoryEditMessages = async (storyId:number) => {
     `${import.meta.env.VITE_API_URL}/story/${storyId}/edit-message`,
   );
 
-  return await res.json();
+  const result = await res.json();
+  return result.data ?? [];
 };
 
 export const getChildrenStories = async () => {
