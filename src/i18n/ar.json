@@ -469,5 +469,18 @@
   "You are one of the winners!":"انت واحد من الفائزين!",
   "Great Effort":"جهد رائع",
   "You completed the challenge.":"لقد أكملت التحدي.",
-  "Challenge Completed":"تم إكمال التحدي"
+  "Challenge Completed":"تم إكمال التحدي",
+
+  "Loading children": "جارٍ تحميل الأطفال",
+  "Getting child profiles so the story can be created for the right reader": "جارٍ الحصول على ملفات تعريف الأطفال حتى يمكن إنشاء القصة للقارئ المناسب",
+  "Couldn't load children": "تعذر تحميل الأطفال",
+  "The child list did not load. Refresh the page and try again.": "لم يتم تحميل قائمة الأطفال. قم بتحديث الصفحة وحاول مرة أخرى.",
+  "Loading AI editor": "جارٍ تحميل محرر الذكاء الاصطناعي",
+  "Fetching the previous editing conversation for this story.": "جارٍ جلب محادثة التحرير السابقة لهذه القصة.",
+  "No editing history yet": "لا يوجد سجل تحرير بعد",
+  "Send the first instruction and the AI editor will start keeping the conversation here.": "أرسل التعليمات الأولى وسيبدأ محرر الذكاء الاصطناعي في الاحتفاظ بالمحادثة هنا.",
+  "No story reports yet": "لا توجد تقارير قصص بعد",
+  "Reports appear here after a child completes story questions.": "تظهر التقارير هنا بعد أن يكمل الطفل أسئلة القصة.",
+  "No chat report yet": "لا توجد تقارير دردشة بعد",
+  "Chat insights appear here after enough conversations have been analyzed.": "تظهر رؤى الدردشة هنا بعد تحليل عدد كافٍ من المحادثات."
 }

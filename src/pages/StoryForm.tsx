@@ -81,7 +81,6 @@ export default function StoryForm() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-
   const [form, setForm] = useState({
     behavior: "",
     length: "",
@@ -534,16 +533,16 @@ export default function StoryForm() {
             {childrenState === "loading" ? (
               <AsyncFeedback
                 tone="loading"
-                title="Loading children"
-                message="Getting child profiles so the story can be created for the right reader."
+                title={t("Loading children")}
+                message={t("Getting child profiles so the story can be created for the right reader")}
               />
             ) : null}
 
             {childrenState === "error" ? (
               <AsyncFeedback
                 tone="error"
-                title="Couldn't load children"
-                message="The child list did not load. Refresh the page and try again."
+                title={t("Couldn't load children")}
+                message={t("The child list did not load. Refresh the page and try again.")}
               />
             ) : null}
 
@@ -919,16 +918,16 @@ export default function StoryForm() {
             {editorMessagesLoading ? (
               <AsyncFeedback
                 tone="loading"
-                title="Loading AI editor"
-                message="Fetching the previous editing conversation for this story."
+                title={t("Loading AI editor")}
+                message={t("Fetching the previous editing conversation for this story.")}
               />
             ) : null}
 
             {!editorMessagesLoading && chatMessages.length === 0 ? (
               <AsyncFeedback
                 tone="info"
-                title="No editing history yet"
-                message="Send the first instruction and the AI editor will start keeping the conversation here."
+                title={t("No editing history yet")}
+                message={t("Send the first instruction and the AI editor will start keeping the conversation here.")}
               />
             ) : null}
 

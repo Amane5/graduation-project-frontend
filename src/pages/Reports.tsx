@@ -261,8 +261,8 @@ console.log(res);
         {storyReports.length === 0 ? (
         <PageState
           icon={BookOpen}
-          title="No story reports yet"
-          description="Reports appear here after a child completes story questions."
+          title={t("No story reports yet")}
+          description={t("Reports appear here after a child completes story questions.")}
         />
         ) : null}
 
@@ -408,8 +408,8 @@ console.log(res);
       ) : (
       <PageState
         icon={FileText}
-        title="No chat report yet"
-        description="Chat insights appear here after enough conversations have been analyzed."
+        title={t("No chat report yet")}
+        description={t("Chat insights appear here after enough conversations have been analyzed.")}
       />
       )}
 
