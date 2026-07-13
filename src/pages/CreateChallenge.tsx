@@ -51,7 +51,26 @@ import {
   recommendAnswer,
   recommendQuestions,
 } from "@/lib/challenge";
+import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+
+const getCurrentValidationDate = () => {
+  const now = new Date();
+  now.setSeconds(0, 0);
+  return now;
+};
+
+const parseDateTimeValue = (
+  value: string
+) => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+};
 
 const formSchema = z
   .object({
@@ -63,20 +82,54 @@ const formSchema = z
       .string()
       .min(5, "Description is required"),
 
-    startAt: z.string(),
+    startAt: z
+      .string()
+      .min(1, "Start date is required"),
 
-    endAt: z.string(),
+    endAt: z
+      .string()
+      .min(1, "End date is required"),
   })
-  .refine(
-    (data) =>
-      new Date(data.endAt) >
-      new Date(data.startAt),
-    {
-      message:
-        "End date must be after start date",
-      path: ["endAt"],
+  .superRefine((data, ctx) => {
+    const now = getCurrentValidationDate();
+    const startAt = data.startAt
+      ? parseDateTimeValue(data.startAt)
+      : null;
+    const endAt = data.endAt
+      ? parseDateTimeValue(data.endAt)
+      : null;
+
+    if (startAt && startAt < now) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Start date cannot be in the past",
+        path: ["startAt"],
+      });
     }
-  );
+
+    if (endAt && endAt < now) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "End date cannot be in the past",
+        path: ["endAt"],
+      });
+    }
+
+    if (
+      startAt &&
+      endAt &&
+      endAt <= startAt
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "End date must be after start date",
+        path: ["endAt"],
+      });
+    }
+  });
 
 type FormValues = z.infer<
   typeof formSchema
@@ -93,6 +146,12 @@ interface QuestionFeedbackState {
   title: string;
   message: string;
   retryMode?: "question" | "answer";
+}
+
+interface QuestionFieldErrors {
+  question?: string;
+  expectedAnswer?: string;
+  points?: string;
 }
 
 const shiftIndexedStateAfterRemoval = <T,>(
@@ -120,6 +179,43 @@ const shiftIndexedStateAfterRemoval = <T,>(
 
     return nextState;
   }, {});
+
+const validateQuestionDraft = (
+  question: ChallengeQuestionDraft
+) => {
+  const errors: QuestionFieldErrors = {};
+
+  if (!question.question.trim()) {
+    errors.question =
+      "Question text is required";
+  }
+
+  if (
+    !question.expectedAnswer.trim()
+  ) {
+    errors.expectedAnswer =
+      "Expected answer is required";
+  }
+
+  if (
+    !Number.isFinite(question.points) ||
+    question.points <= 0
+  ) {
+    errors.points =
+      "Points must be greater than 0";
+  }
+
+  return errors;
+};
+
+const hasQuestionFieldErrors = (
+  errors: QuestionFieldErrors
+) =>
+  Boolean(
+    errors.question ||
+      errors.expectedAnswer ||
+      errors.points
+  );
 
 const CreateChallenge = () => {
   const navigate = useNavigate();
@@ -156,9 +252,27 @@ const CreateChallenge = () => {
       QuestionFeedbackState | undefined
     >
   >({});
+  const [
+    questionErrorsByIndex,
+    setQuestionErrorsByIndex,
+  ] = useState<
+    Record<
+      number,
+      QuestionFieldErrors | undefined
+    >
+  >({});
+  const [
+    questionSectionError,
+    setQuestionSectionError,
+  ] = useState<string | null>(null);
+  const [
+    showQuestionValidation,
+    setShowQuestionValidation,
+  ] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    mode: "onChange",
 
     defaultValues: {
       title: "",
@@ -190,6 +304,77 @@ const CreateChallenge = () => {
         next[index] = feedback;
         return next;
       }
+    );
+  };
+
+  const setQuestionValidationError = (
+    index: number,
+    errors?: QuestionFieldErrors
+  ) => {
+    setQuestionErrorsByIndex(
+      (prev) => {
+        const next = {
+          ...prev,
+        };
+
+        if (
+          !errors ||
+          !hasQuestionFieldErrors(errors)
+        ) {
+          delete next[index];
+          return next;
+        }
+
+        next[index] = errors;
+        return next;
+      }
+    );
+  };
+
+  const syncQuestionValidationState = (
+    questionList: ChallengeQuestionDraft[],
+    showErrors = true
+  ) => {
+    const nextErrors: Record<
+      number,
+      QuestionFieldErrors
+    > = {};
+
+    questionList.forEach(
+      (question, index) => {
+        const errors =
+          validateQuestionDraft(question);
+
+        if (
+          hasQuestionFieldErrors(errors)
+        ) {
+          nextErrors[index] = errors;
+        }
+      }
+    );
+
+    if (showErrors) {
+      setQuestionErrorsByIndex(nextErrors);
+      setQuestionSectionError(
+        Object.keys(nextErrors).length > 0
+          ? "At least one valid question is required, and every question must be complete."
+          : null
+      );
+    } else {
+      setQuestionErrorsByIndex({});
+      setQuestionSectionError(null);
+    }
+
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const validateAllQuestions = (
+    questionList: ChallengeQuestionDraft[]
+  ) => {
+    setShowQuestionValidation(true);
+    return syncQuestionValidationState(
+      questionList,
+      true
     );
   };
 
@@ -229,9 +414,20 @@ const CreateChallenge = () => {
         return;
     }
 
-    setQuestions((prev) =>
-        prev.filter((_, i) => i !== index)
-    );
+    setQuestions((prev) => {
+      const nextQuestions = prev.filter(
+        (_, i) => i !== index
+      );
+
+      if (showQuestionValidation) {
+        syncQuestionValidationState(
+          nextQuestions,
+          true
+        );
+      }
+
+      return nextQuestions;
+    });
     setQuestionFeedbackByIndex((prev) =>
       shiftIndexedStateAfterRemoval(
         prev,
@@ -260,6 +456,14 @@ const CreateChallenge = () => {
 
     setQuestions(updated);
     setQuestionFeedback(index);
+    if (showQuestionValidation) {
+      syncQuestionValidationState(
+        updated,
+        true
+      );
+    } else {
+      setQuestionValidationError(index);
+    }
     };
 
     const handleGenerateQuestions = async () => {
@@ -321,11 +525,20 @@ const CreateChallenge = () => {
         return;
       }
 
-      setQuestions((prev) =>
-        mergeGeneratedChallengeQuestions(
-          prev,
-          generatedQuestions
-        )
+      setQuestions((prev) => {
+        const nextQuestions =
+          mergeGeneratedChallengeQuestions(
+            prev,
+            generatedQuestions
+          );
+
+        syncQuestionValidationState(
+          nextQuestions,
+          showQuestionValidation
+        );
+
+        return nextQuestions;
+      }
       );
 
       setQuestionFeedback(anchorIndex, {
@@ -403,8 +616,8 @@ const CreateChallenge = () => {
         return;
       }
 
-      setQuestions((prev) =>
-        prev.map(
+      setQuestions((prev) => {
+        const nextQuestions = prev.map(
           (
             currentQuestion,
             currentIndex
@@ -416,7 +629,15 @@ const CreateChallenge = () => {
                     answer,
                 }
               : currentQuestion
-        )
+        );
+
+        syncQuestionValidationState(
+          nextQuestions,
+          showQuestionValidation
+        );
+
+        return nextQuestions;
+      }
       );
 
       setQuestionFeedback(index, {
@@ -452,6 +673,16 @@ const CreateChallenge = () => {
   const onSubmit = async (
   values: FormValues
 ) => {
+  const formIsValid =
+    await form.trigger();
+
+  const questionsAreValid =
+    validateAllQuestions(questions);
+
+  if (!formIsValid || !questionsAreValid) {
+    return;
+  }
+
   if (participantIds.length === 0) {
     toast.error(
       "Please select at least one participant"
@@ -460,23 +691,8 @@ const CreateChallenge = () => {
   }
 
   if (questions.length === 0) {
-    toast.error(
-      "Add at least one question"
-    );
-    return;
-  }
-
-  const invalidQuestion =
-    questions.find(
-      (q) =>
-        !q.question ||
-        !q.expectedAnswer ||
-        q.points < 1
-    );
-
-  if (invalidQuestion) {
-    toast.error(
-      "Please complete all questions"
+    setQuestionSectionError(
+      "At least one valid question is required."
     );
     return;
   }
@@ -714,6 +930,7 @@ const CreateChallenge = () => {
                     name="startAt"
                     render={({
                       field,
+                      fieldState,
                     }) => (
                       <FormItem>
                         <FormLabel>
@@ -723,6 +940,14 @@ const CreateChallenge = () => {
                         <FormControl>
                           <Input
                             type="datetime-local"
+                            aria-invalid={
+                              fieldState.invalid
+                            }
+                            className={cn(
+                              fieldState.invalid
+                                ? "border-destructive focus-visible:border-destructive"
+                                : undefined
+                            )}
                             {...field}
                           />
                         </FormControl>
@@ -737,6 +962,7 @@ const CreateChallenge = () => {
                     name="endAt"
                     render={({
                       field,
+                      fieldState,
                     }) => (
                       <FormItem>
                         <FormLabel>
@@ -746,6 +972,14 @@ const CreateChallenge = () => {
                         <FormControl>
                           <Input
                             type="datetime-local"
+                            aria-invalid={
+                              fieldState.invalid
+                            }
+                            className={cn(
+                              fieldState.invalid
+                                ? "border-destructive focus-visible:border-destructive"
+                                : undefined
+                            )}
                             {...field}
                           />
                         </FormControl>
@@ -793,10 +1027,19 @@ const CreateChallenge = () => {
                 </CardHeader>
 
                 <CardContent className="space-y-5">
+                    {questionSectionError ? (
+                      <p className="text-sm font-medium text-destructive">
+                        {questionSectionError}
+                      </p>
+                    ) : null}
                     {questions.map(
                     (question, index) => {
                         const feedback =
                           questionFeedbackByIndex[
+                            index
+                          ];
+                        const questionErrors =
+                          questionErrorsByIndex[
                             index
                           ];
                         const isAnswerLoading =
@@ -843,6 +1086,16 @@ const CreateChallenge = () => {
                             disabled={
                               isQuestionLoading
                             }
+                            aria-invalid={
+                              Boolean(
+                                questionErrors?.question
+                              )
+                            }
+                            className={cn(
+                              questionErrors?.question
+                                ? "border-destructive focus-visible:border-destructive"
+                                : undefined
+                            )}
                             placeholder={t("Question")}
                             value={
                                 question.question
@@ -855,11 +1108,28 @@ const CreateChallenge = () => {
                                 )
                             }
                             />
+                            {questionErrors?.question ? (
+                              <p className="text-sm text-destructive">
+                                {
+                                  questionErrors.question
+                                }
+                              </p>
+                            ) : null}
 
                             <Textarea
                             disabled={
                               isAnswerLoading
                             }
+                            aria-invalid={
+                              Boolean(
+                                questionErrors?.expectedAnswer
+                              )
+                            }
+                            className={cn(
+                              questionErrors?.expectedAnswer
+                                ? "border-destructive focus-visible:ring-destructive"
+                                : undefined
+                            )}
                             placeholder={t("ExpectedAnswer")}
                             value={
                                 question.expectedAnswer
@@ -872,11 +1142,28 @@ const CreateChallenge = () => {
                                 )
                             }
                             />
+                            {questionErrors?.expectedAnswer ? (
+                              <p className="text-sm text-destructive">
+                                {
+                                  questionErrors.expectedAnswer
+                                }
+                              </p>
+                            ) : null}
 
                             <Input
                             disabled={
                               isQuestionBusy
                             }
+                            aria-invalid={
+                              Boolean(
+                                questionErrors?.points
+                              )
+                            }
+                            className={cn(
+                              questionErrors?.points
+                                ? "border-destructive focus-visible:border-destructive"
+                                : undefined
+                            )}
                             type="number"
                             min={1}
                             value={
@@ -892,6 +1179,13 @@ const CreateChallenge = () => {
                                 )
                             }
                             />
+                            {questionErrors?.points ? (
+                              <p className="text-sm text-destructive">
+                                {
+                                  questionErrors.points
+                                }
+                              </p>
+                            ) : null}
 
                             {feedback ? (
                               <AsyncFeedback
