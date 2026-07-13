@@ -158,8 +158,8 @@ const AddChild = () => {
       tone: "loading",
       title: isEditMode ? t("updateChild") : t("createChild"),
       message: isEditMode
-        ? "Saving the latest child profile changes."
-        : "Creating the child profile and saving preferences.",
+        ? t("addChildSavingChanges")
+        : t("addChildCreatingProfile"),
     });
 
     try {
@@ -193,7 +193,7 @@ const AddChild = () => {
         setFeedback({
           tone: "success",
           title: t("updated"),
-          message: "The child profile was updated successfully.",
+          message: t("addChildUpdatedMessage"),
         });
         navigate("/dashboard");
       } else {
@@ -234,7 +234,7 @@ const AddChild = () => {
       }
       setFeedback({
         tone: "error",
-        title: isEditMode ? "Couldn't update child" : "Couldn't create child",
+        title: isEditMode ? t("addChildUpdateFailedTitle") : t("addChildCreateFailedTitle"),
         message: error.message,
       });
     } finally {
@@ -337,8 +337,8 @@ const AddChild = () => {
           <div className="mb-6">
             <AsyncFeedback
               tone="loading"
-              title="Loading child profile"
-              message="Fetching the latest profile details so you can keep editing."
+              title={t("addChildLoadingProfileTitle")}
+              message={t("addChildLoadingProfileMessage")}
             />
           </div>
         ) : null}
