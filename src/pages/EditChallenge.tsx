@@ -12,7 +12,16 @@ import PlayfulBackground from "@/components/PlayfulBackground";
 import { toast } from "sonner";
 
 import { getChildren } from "@/lib/children";
+import {
+  createEmptyChallengeQuestion,
+  ensureChallengeQuestionSlot,
+  extractRecommendedAnswer,
+  isRecommendedChallengeQuestion,
+  mergeGeneratedChallengeQuestions,
+  type ChallengeQuestionDraft,
+} from "@/lib/challengeQuestionDrafts";
 
+import { AsyncFeedback } from "@/components/ui/async-feedback";
 import { Button } from "@/components/ui/button";
 
 import { Input } from "@/components/ui/input";
@@ -38,13 +47,12 @@ import {
 } from "@/components/ui/form";
 
 import {
-  createChallenge,
   getChallenge,
   recommendAnswer,
   recommendQuestions,
   updateChallenge,
 } from "@/lib/challenge";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 const formSchema = z
@@ -83,6 +91,58 @@ interface Child {
   lastName: string;
 }
 
+interface ChallengeParticipantRecord {
+  id: number;
+}
+
+interface ChallengeQuestionRecord {
+  question: string;
+  expectedAnswer: string;
+  points: number;
+}
+
+interface ChallengeDetailsRecord {
+  title: string;
+  description?: string | null;
+  startAt: string;
+  endAt: string;
+  participants: ChallengeParticipantRecord[];
+  questions: ChallengeQuestionRecord[];
+}
+
+interface QuestionFeedbackState {
+  tone: "loading" | "success" | "error";
+  title: string;
+  message: string;
+  retryMode?: "question" | "answer";
+}
+
+const shiftIndexedStateAfterRemoval = <T,>(
+  state: Record<number, T | undefined>,
+  removedIndex: number,
+) =>
+  Object.entries(state).reduce<
+    Record<number, T | undefined>
+  >((nextState, [indexKey, value]) => {
+    const index = Number(indexKey);
+
+    if (
+      Number.isNaN(index) ||
+      index === removedIndex ||
+      value === undefined
+    ) {
+      return nextState;
+    }
+
+    nextState[
+      index > removedIndex
+        ? index - 1
+        : index
+    ] = value;
+
+    return nextState;
+  }, {});
+
 const toDateTimeLocal = (
   dateString: string
 ) => {
@@ -118,7 +178,9 @@ const EditChallenge = () => {
     });
 
     const challenge =
-    challengeRes?.data;
+    challengeRes?.data as
+      | ChallengeDetailsRecord
+      | undefined;
   const [children, setChildren] =
     useState<Child[]>([]);
 
@@ -129,6 +191,29 @@ const EditChallenge = () => {
 
   const [loading, setLoading] =
     useState(false);
+  const [
+    isGeneratingQuestion,
+    setIsGeneratingQuestion,
+  ] = useState(false);
+  const [
+    questionGenerationAnchor,
+    setQuestionGenerationAnchor,
+  ] = useState<number | null>(null);
+  const [
+    answerLoadingByIndex,
+    setAnswerLoadingByIndex,
+  ] = useState<Record<number, boolean>>(
+    {}
+  );
+  const [
+    questionFeedbackByIndex,
+    setQuestionFeedbackByIndex,
+  ] = useState<
+    Record<
+      number,
+      QuestionFeedbackState | undefined
+    >
+  >({});
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -143,12 +228,29 @@ const EditChallenge = () => {
   });
 
   const [questions, setQuestions] = useState([
-  {
-    question: "",
-    expectedAnswer: "",
-    points: 1,
-  },
-]);
+    createEmptyChallengeQuestion(),
+  ] satisfies ChallengeQuestionDraft[]);
+
+  const setQuestionFeedback = (
+    index: number,
+    feedback?: QuestionFeedbackState
+  ) => {
+    setQuestionFeedbackByIndex(
+      (prev) => {
+        const next = {
+          ...prev,
+        };
+
+        if (!feedback) {
+          delete next[index];
+          return next;
+        }
+
+        next[index] = feedback;
+        return next;
+      }
+    );
+  };
 
 useEffect(() => {
   console.log(form.formState.errors);
@@ -171,21 +273,22 @@ useEffect(() => {
 
   setParticipantIds(
     challenge.participants.map(
-      (p: any) => p.id
+      (participant) =>
+        participant.id
     )
   );
 console.log(challenge.participants);
   setQuestions(
     challenge.questions.map(
-      (q: any) => ({
-        question: q.question,
+      (challengeQuestion) => ({
+        question: challengeQuestion.question,
         expectedAnswer:
-          q.expectedAnswer,
-        points: q.points,
+          challengeQuestion.expectedAnswer,
+        points: challengeQuestion.points,
       })
     )
   );
-}, [challenge]);
+}, [challenge, form]);
 
   useEffect(() => {
     const loadChildren = async () => {
@@ -211,11 +314,7 @@ console.log(challenge.participants);
   const addQuestion = () => {
   setQuestions((prev) => [
     ...prev,
-    {
-      question: "",
-      expectedAnswer: "",
-      points: 1,
-    },
+    createEmptyChallengeQuestion(),
   ]);
     };
 
@@ -230,11 +329,23 @@ console.log(challenge.participants);
     setQuestions((prev) =>
         prev.filter((_, i) => i !== index)
     );
+    setQuestionFeedbackByIndex((prev) =>
+      shiftIndexedStateAfterRemoval(
+        prev,
+        index
+      )
+    );
+    setAnswerLoadingByIndex((prev) =>
+      shiftIndexedStateAfterRemoval(
+        prev,
+        index
+      )
+    );
     };
 
     const updateQuestion = (
   index: number,
-  field: string,
+  field: keyof ChallengeQuestionDraft,
   value: string | number
     ) => {
     const updated = [...questions];
@@ -245,6 +356,7 @@ console.log(challenge.participants);
     };
 
     setQuestions(updated);
+    setQuestionFeedback(index);
     };
 
     const handleGenerateQuestions = async () => {
@@ -255,40 +367,90 @@ console.log(challenge.participants);
       return;
     }
 
+    const {
+      questions: preparedQuestions,
+      anchorIndex,
+    } = ensureChallengeQuestionSlot(
+      questions
+    );
+
+    if (preparedQuestions !== questions) {
+      setQuestions(preparedQuestions);
+    }
+
+    setIsGeneratingQuestion(true);
+    setQuestionGenerationAnchor(
+      anchorIndex
+    );
+    setQuestionFeedback(anchorIndex, {
+      tone: "loading",
+      title: "Generating question",
+      message:
+        "AI is drafting a question for this slot.",
+    });
+
     try {
       const res =
         await recommendQuestions(
           participantIds
         );
 
-      if (!res?.data?.length) {
-        toast.error(
-          "No recommendations found"
+      const generatedQuestions = Array.isArray(
+        res?.data
+      )
+        ? res.data.filter(
+            isRecommendedChallengeQuestion
+          )
+        : [];
+
+      if (!generatedQuestions.length) {
+        setQuestionFeedback(
+          anchorIndex,
+          {
+            tone: "error",
+            title:
+              "Couldn't generate question",
+            message:
+              "No AI question was returned for the selected participants. Try again.",
+            retryMode: "question",
+          }
         );
         return;
       }
 
-      const generated =
-        res.data.map((item: any) => ({
-          question: item.question,
-          expectedAnswer: "",
-          points: 5,
-        }));
-
-    //   setQuestions(generated);
-    setQuestions((prev) => [
-    ...prev,
-    ...generated,
-    ]);
-
-      toast.success(
-        "Questions generated successfully"
+      setQuestions((prev) =>
+        mergeGeneratedChallengeQuestions(
+          prev,
+          generatedQuestions
+        )
       );
+
+      setQuestionFeedback(anchorIndex, {
+        tone: "success",
+        title:
+          generatedQuestions.length === 1
+            ? "Question ready"
+            : "Questions ready",
+        message:
+          generatedQuestions.length === 1
+            ? "The AI question was added to this challenge."
+            : `${generatedQuestions.length} AI questions were added to this challenge.`,
+      });
     } catch (error) {
       console.log(error);
 
-      toast.error(
-        "Failed to generate questions"
+      setQuestionFeedback(anchorIndex, {
+        tone: "error",
+        title:
+          "Couldn't generate question",
+        message:
+          "The AI couldn't draft a question right now. Try again.",
+        retryMode: "question",
+      });
+    } finally {
+      setIsGeneratingQuestion(false);
+      setQuestionGenerationAnchor(
+        null
       );
     }
   };
@@ -299,11 +461,25 @@ console.log(challenge.participants);
     index: number
   ) => {
     if (!question.trim()) {
-      toast.error(
-        "Write question first"
-      );
+      setQuestionFeedback(index, {
+        tone: "error",
+        title: "Question needed first",
+        message:
+          "Add the question text before asking AI for an answer.",
+      });
       return;
     }
+
+    setAnswerLoadingByIndex((prev) => ({
+      ...prev,
+      [index]: true,
+    }));
+    setQuestionFeedback(index, {
+      tone: "loading",
+      title: "Generating answer",
+      message:
+        "AI is drafting the expected answer for this question.",
+    });
 
     try {
       const res =
@@ -312,25 +488,64 @@ console.log(challenge.participants);
         );
 
       const answer =
-        res?.data?.expectedAnswer;
+        extractRecommendedAnswer(
+          res?.data
+        );
 
-      if (!answer) return;
+      if (!answer) {
+        setQuestionFeedback(index, {
+          tone: "error",
+          title:
+            "Couldn't generate answer",
+          message:
+            "The AI didn't return an answer this time. Try again.",
+          retryMode: "answer",
+        });
+        return;
+      }
 
-      const updated = [...questions];
-
-      updated[index].expectedAnswer =
-        answer;
-
-      setQuestions(updated);
-
-      toast.success(
-        "Answer generated"
+      setQuestions((prev) =>
+        prev.map(
+          (
+            currentQuestion,
+            currentIndex
+          ) =>
+            currentIndex === index
+              ? {
+                  ...currentQuestion,
+                  expectedAnswer:
+                    answer,
+                }
+              : currentQuestion
+        )
       );
+
+      setQuestionFeedback(index, {
+        tone: "success",
+        title: "Answer ready",
+        message:
+          "The expected answer was filled in for this question.",
+      });
     } catch (error) {
       console.log(error);
 
-      toast.error(
-        "Failed to generate answer"
+      setQuestionFeedback(index, {
+        tone: "error",
+        title:
+          "Couldn't generate answer",
+        message:
+          "The AI couldn't draft an answer right now. Try again.",
+        retryMode: "answer",
+      });
+    } finally {
+      setAnswerLoadingByIndex(
+        (prev) => {
+          const next = {
+            ...prev,
+          };
+          delete next[index];
+          return next;
+        }
       );
     }
   };
@@ -693,6 +908,9 @@ if (isLoading) {
                         disabled={cannotEdit}
                         type="button"
                         variant="outline"
+                        loading={
+                          isGeneratingQuestion
+                        }
                         onClick={
                             handleGenerateQuestions
                         }
@@ -702,8 +920,11 @@ if (isLoading) {
                         </Button>
 
                         <Button
-                        disabled={cannotEdit}
                         type="button"
+                        disabled={
+                          cannotEdit ||
+                          isGeneratingQuestion
+                        }
                         onClick={addQuestion}
                         >
                         {t("AddQuestion")}
@@ -714,7 +935,24 @@ if (isLoading) {
 
                 <CardContent className="space-y-5">
                     {questions.map(
-                    (question, index) => (
+                    (question, index) => {
+                        const feedback =
+                          questionFeedbackByIndex[
+                            index
+                          ];
+                        const isAnswerLoading =
+                          answerLoadingByIndex[
+                            index
+                          ] === true;
+                        const isQuestionLoading =
+                          isGeneratingQuestion &&
+                          questionGenerationAnchor ===
+                            index;
+                        const isQuestionBusy =
+                          isAnswerLoading ||
+                          isQuestionLoading;
+
+                        return (
                         <Card
                         key={index}
                         className="border"
@@ -726,7 +964,10 @@ if (isLoading) {
                             </h3>
 
                             <Button
-                                disabled={cannotEdit}
+                                disabled={
+                                  cannotEdit ||
+                                  isGeneratingQuestion
+                                }
                                 type="button"
                                 size="icon"
                                 variant="ghost"
@@ -741,7 +982,10 @@ if (isLoading) {
                             </div>
 
                             <Input
-                            disabled={cannotEdit}
+                            disabled={
+                              cannotEdit ||
+                              isQuestionLoading
+                            }
                             placeholder="Question"
                             value={
                                 question.question
@@ -756,7 +1000,10 @@ if (isLoading) {
                             />
 
                             <Textarea
-                            disabled={cannotEdit}
+                            disabled={
+                              cannotEdit ||
+                              isAnswerLoading
+                            }
                             placeholder="Expected Answer"
                             value={
                                 question.expectedAnswer
@@ -771,7 +1018,10 @@ if (isLoading) {
                             />
 
                             <Input
-                            disabled={cannotEdit}
+                            disabled={
+                              cannotEdit ||
+                              isQuestionBusy
+                            }
                             type="number"
                             min={1}
                             value={
@@ -788,10 +1038,63 @@ if (isLoading) {
                             }
                             />
 
+                            {feedback ? (
+                              <AsyncFeedback
+                                tone={
+                                  feedback.tone
+                                }
+                                title={
+                                  feedback.title
+                                }
+                                message={
+                                  feedback.message
+                                }
+                                actionLabel={
+                                  feedback.tone ===
+                                    "error" &&
+                                  feedback.retryMode
+                                    ? t("tryAgain")
+                                    : undefined
+                                }
+                                onAction={
+                                  feedback.tone ===
+                                    "error" &&
+                                  feedback.retryMode ===
+                                    "question"
+                                    ? () => {
+                                        void handleGenerateQuestions();
+                                      }
+                                    : feedback.tone ===
+                                          "error" &&
+                                        feedback.retryMode ===
+                                          "answer"
+                                      ? () => {
+                                          void handleGenerateAnswer(
+                                            question.question,
+                                            index
+                                          );
+                                        }
+                                      : undefined
+                                }
+                                actionLoading={
+                                  feedback.retryMode ===
+                                  "question"
+                                    ? isGeneratingQuestion
+                                    : isAnswerLoading
+                                }
+                              />
+                            ) : null}
+
                             <Button
-                            disabled={cannotEdit}
+                            disabled={
+                              cannotEdit ||
+                              isQuestionLoading
+                            }
                             type="button"
                             variant="secondary"
+                            loading={
+                              isAnswerLoading
+                            }
                             onClick={() =>
                                 handleGenerateAnswer(
                                 question.question,
@@ -804,7 +1107,8 @@ if (isLoading) {
                             </Button>
                         </CardContent>
                         </Card>
-                    )
+                        );
+                      }
                     )}
                 </CardContent>
               </Card> 
