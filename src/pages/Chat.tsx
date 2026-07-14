@@ -15,6 +15,11 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotificationHandler } from "@/hooks/useFirebaseNotifications";
 import {
+  type LocalizedFeedbackState,
+  translateI18nKey,
+  translateLocalizedText,
+} from "@/lib/i18n-feedback";
+import {
   createConversation,
   deleteConversation as dbDeleteConversation,
   listConversations,
@@ -125,11 +130,7 @@ const Chat = () => {
   const [drawingLoading, setDrawingLoading] = useState(false);
   const [drawingFinished, setDrawingFinished] = useState(false);
   const [drawingStatus, setDrawingStatus] = useState("");
-  const [chatFeedback, setChatFeedback] = useState<{
-    tone: "loading" | "success" | "error" | "info";
-    title?: string;
-    message: string;
-  } | null>(null);
+  const [chatFeedback, setChatFeedback] = useState<LocalizedFeedbackState | null>(null);
   const [navbarHeight, setNavbarHeight] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -357,8 +358,8 @@ const Chat = () => {
         toast.error(t("couldntLoadMessages"));
         setChatFeedback({
           tone: "error",
-          title: "Couldn't load messages",
-          message: "This conversation did not load correctly. Try choosing it again or start a fresh chat.",
+          title: { key: "chatFeedbackLoadMessagesTitle" },
+          message: { key: "chatFeedbackLoadMessagesMessage" },
         });
       } finally {
         if (
@@ -388,7 +389,7 @@ const Chat = () => {
   useNotificationHandler({
     type: "AI_PROGRESS",
     handler: (payload) => {
-      setDrawingStatus(payload.data?.step || "");
+      setDrawingStatus(payload.data?.stepKey || payload.data?.step || "");
     },
   });
 
@@ -401,8 +402,8 @@ const Chat = () => {
       } catch {
         setChatFeedback({
           tone: "error",
-          title: "Couldn't load token balance",
-          message: "The chat still works, but the balance indicator could not be refreshed right now.",
+          title: { key: "chatFeedbackTokenBalanceTitle" },
+          message: { key: "chatFeedbackTokenBalanceMessage" },
         });
       } finally {
         setTokenLoading(false);
@@ -423,8 +424,8 @@ const Chat = () => {
         toast.error(t("couldntLoadChats"));
         setChatFeedback({
           tone: "error",
-          title: "Couldn't load chats",
-          message: "Your recent conversations are unavailable right now. You can still start a new chat.",
+          title: { key: "chatFeedbackLoadChatsTitle" },
+          message: { key: "chatFeedbackLoadChatsMessage" },
         });
       } finally {
         setLoadingConvos(false);
@@ -523,8 +524,10 @@ const Chat = () => {
         setStreaming(true);
         setChatFeedback({
           tone: "loading",
-          title: "Continuing drawing story",
-          message: drawingStatus || "Sparky is turning the new drawing details into the next part of the story.",
+          title: { key: "chatFeedbackContinueDrawingTitle" },
+          message: drawingStatus
+            ? { key: drawingStatus }
+            : { key: "chatFeedbackContinueDrawingMessage" },
         });
         const response = await sendDrawingStoryMessage({
           conversationId: drawingConversationId,
@@ -536,8 +539,8 @@ const Chat = () => {
           setDrawingFinished(true);
           setChatFeedback({
             tone: "success",
-            title: "Drawing story ready",
-            message: "The drawing conversation is complete. You can turn it into a finished story below.",
+            title: { key: "chatFeedbackDrawingReadyTitle" },
+            message: { key: "chatFeedbackDrawingReadyMessage" },
           });
         } else {
           setMessages((prev) => [
@@ -556,8 +559,8 @@ const Chat = () => {
         lastAttemptRef.current = { text, files };
         setChatFeedback({
           tone: "error",
-          title: "Message not sent",
-          message: "The drawing story reply did not go through. Retry when you’re ready.",
+          title: { key: "chatFeedbackMessageNotSentTitle" },
+          message: { key: "chatFeedbackMessageNotSentMessage" },
         });
       } finally {
         setStreaming(false);
@@ -573,8 +576,8 @@ const Chat = () => {
       try {
         setChatFeedback({
           tone: "loading",
-          title: "Starting chat",
-          message: "Creating a new conversation before sending your message.",
+          title: { key: "chatFeedbackStartingChatTitle" },
+          message: { key: "chatFeedbackStartingChatMessage" },
         });
         const titleSeed = text.trim() || files[0]?.name || t("chatNewConversation");
         const conversation = await createConversation(titleSeed.slice(0, 40));
@@ -587,8 +590,8 @@ const Chat = () => {
         lastAttemptRef.current = { text, files };
         setChatFeedback({
           tone: "error",
-          title: "Couldn't start chat",
-          message: "The conversation was not created. Retry to send the same message again.",
+          title: { key: "chatFeedbackStartChatFailedTitle" },
+          message: { key: "chatFeedbackStartChatFailedMessage" },
         });
         return;
       }
@@ -621,11 +624,18 @@ const Chat = () => {
     lastAttemptRef.current = { text, files };
     setChatFeedback({
       tone: "loading",
-      title: mode === "journey" ? "Sparky is preparing a guided reply" : "Sparky is thinking",
+      title: {
+        key:
+          mode === "journey"
+            ? "chatFeedbackJourneyReplyTitle"
+            : "chatFeedbackThinkingTitle",
+      },
       message:
         mode === "drawing"
-          ? drawingStatus || "Working on the drawing-based story response."
-          : "Your message was sent. You can keep reading here while the response streams in.",
+          ? drawingStatus
+            ? { key: drawingStatus }
+            : { key: "chatFeedbackDrawingReplyMessage" }
+          : { key: "chatFeedbackStreamingMessage" },
     });
 
     let accumulated = "";
@@ -661,8 +671,8 @@ const Chat = () => {
         streamAbortControllerRef.current = null;
         setChatFeedback({
           tone: "info",
-          title: "Response stopped",
-          message: "Generation stopped. The partial reply was kept in this conversation.",
+          title: { key: "chatFeedbackStoppedTitle" },
+          message: { key: "chatFeedbackStoppedMessage" },
         });
         setMessages((prev) =>
           prev.map((message) =>
@@ -679,8 +689,8 @@ const Chat = () => {
         toast.error(message);
         setChatFeedback({
           tone: "error",
-          title: "Reply interrupted",
-          message: "The response stopped before finishing. Retry the last message to keep going.",
+          title: { key: "chatFeedbackInterruptedTitle" },
+          message: { key: "chatFeedbackInterruptedMessage" },
         });
       },
       onAudio: (audioUrl) => {
@@ -710,8 +720,8 @@ const Chat = () => {
       setDrawingLoading(true);
       setChatFeedback({
         tone: "loading",
-        title: "Analyzing drawing",
-        message: "Uploading the drawing and preparing the first story prompt.",
+        title: { key: "chatFeedbackAnalyzingDrawingTitle" },
+        message: { key: "chatFeedbackAnalyzingDrawingMessage" },
       });
 
       const response = await startDrawingStory(file);
@@ -741,16 +751,16 @@ const Chat = () => {
       ]);
       setChatFeedback({
         tone: "success",
-        title: "Drawing ready",
-        message: "The drawing is loaded. Keep chatting to shape the story scene by scene.",
+        title: { key: "chatFeedbackDrawingLoadedTitle" },
+        message: { key: "chatFeedbackDrawingLoadedMessage" },
       });
     } catch (error) {
       console.error(error);
       toast.error(t("chatAnalyzeDrawingFailed"));
       setChatFeedback({
         tone: "error",
-        title: "Couldn't analyze drawing",
-        message: "The drawing upload did not finish. Try selecting the image again.",
+        title: { key: "chatFeedbackAnalyzeDrawingFailedTitle" },
+        message: { key: "chatFeedbackAnalyzeDrawingFailedMessage" },
       });
     } finally {
       setDrawingLoading(false);
@@ -761,12 +771,12 @@ const Chat = () => {
     if (!drawingConversationId) return;
 
     try {
-      setDrawingStatus(t("generating"));
+      setDrawingStatus("progress_writing_story");
       setDrawingLoading(true);
       setChatFeedback({
         tone: "loading",
-        title: "Creating story",
-        message: "Turning the drawing conversation into a full story for the library.",
+        title: { key: "chatFeedbackCreatingStoryTitle" },
+        message: { key: "chatFeedbackCreatingStoryMessage" },
       });
       await generateStoryFromDrawing({
         conversationId: drawingConversationId,
@@ -774,16 +784,16 @@ const Chat = () => {
       toast.success(t("chatStoryCreated"));
       setChatFeedback({
         tone: "success",
-        title: "Story created",
-        message: "The drawing story is finished and opening in the library next.",
+        title: { key: "chatFeedbackStoryCreatedTitle" },
+        message: { key: "chatFeedbackStoryCreatedMessage" },
       });
       navigate("/my-stories");
     } catch {
       toast.error(t("chatGenerateStoryFailed"));
       setChatFeedback({
         tone: "error",
-        title: "Story creation failed",
-        message: "The drawing story could not be finished. Retry from the same conversation.",
+        title: { key: "chatFeedbackStoryFailedTitle" },
+        message: { key: "chatFeedbackStoryFailedMessage" },
       });
     } finally {
       setDrawingLoading(false);
@@ -848,16 +858,16 @@ const Chat = () => {
               {tokenLoading ? (
                 <AsyncFeedback
                   tone="loading"
-                  title="Preparing chat"
-                  message="Checking token balance and getting everything ready for your next message."
+                  title={t("chatFeedbackPreparingChatTitle")}
+                  message={t("chatFeedbackPreparingChatMessage")}
                 />
               ) : null}
 
               {chatFeedback ? (
                 <AsyncFeedback
                   tone={chatFeedback.tone}
-                  title={chatFeedback.title}
-                  message={chatFeedback.message}
+                  title={translateLocalizedText(chatFeedback.title, t)}
+                  message={translateLocalizedText(chatFeedback.message, t)}
                   actionLabel={showRetryForLastAttempt ? t("tryAgain") : undefined}
                   onAction={
                     showRetryForLastAttempt
@@ -971,7 +981,7 @@ const Chat = () => {
                       </p>
                     </div>
                     <Button onClick={handleGenerateStory} disabled={drawingLoading}>
-                      {drawingLoading ? drawingStatus || t("generating") : t("chatBringDrawingToLife")}
+                      {drawingLoading ? translateI18nKey(drawingStatus, t) || t("generating") : t("chatBringDrawingToLife")}
                     </Button>
                   </div>
                 </div>
@@ -999,3 +1009,4 @@ const Chat = () => {
 };
 
 export default Chat;
+

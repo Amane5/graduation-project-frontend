@@ -35,9 +35,11 @@ import {
   ArrowRight,
   Trophy,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const PlayChallenge = () => {
   const { id } = useParams();
+  const { t } = useTranslation();
 
   const navigate = useNavigate();
 
@@ -59,10 +61,10 @@ const PlayChallenge = () => {
 
     useEffect(() => {
     if (participant?.completedAt) {
-        toast.error("You already completed this challenge");
+        toast.error(t("playChallengeAlreadyCompleted"));
         navigate(`/challenge/${id}/results`);
     }
-    }, [id, navigate, participant]);
+    }, [id, navigate, participant, t]);
 
 
   if (isLoading) {
@@ -71,8 +73,8 @@ const PlayChallenge = () => {
         <div className="w-full max-w-2xl">
           <AsyncFeedback
             tone="loading"
-            title="Loading challenge"
-            message="Preparing the challenge questions and your current progress."
+            title={t("playChallengeLoadingTitle")}
+            message={t("playChallengeLoadingMessage")}
           />
         </div>
       </div>
@@ -85,8 +87,8 @@ const PlayChallenge = () => {
         <div className="w-full max-w-2xl">
           <PageState
             icon={Trophy}
-            title="Challenge not available"
-            description="This challenge could not be loaded or is no longer available."
+            title={t("playChallengeUnavailableTitle")}
+            description={t("playChallengeUnavailableMessage")}
             tone="warning"
           />
         </div>
@@ -134,7 +136,7 @@ const PlayChallenge = () => {
       );
 
       toast.success(
-        "Challenge completed successfully!"
+        t("playChallengeCompleted")
       );
 
       navigate(`/challenge/${id}/results`);
@@ -142,9 +144,9 @@ const PlayChallenge = () => {
       console.log(error);
 
       toast.error(
-        "Failed to submit challenge"
+        t("playChallengeSubmitFailed")
       );
-      setSubmitError("Your answers were not submitted. Please try again.");
+      setSubmitError(t("playChallengeSubmitError"));
     } finally {
       setSubmitting(false);
     }
@@ -160,15 +162,15 @@ const PlayChallenge = () => {
             <div className="mb-6">
               <AsyncFeedback
                 tone="loading"
-                title="Submitting challenge"
-                message="Saving each answer and finishing the challenge. Please keep this page open."
+                title={t("playChallengeSubmittingTitle")}
+                message={t("playChallengeSubmittingMessage")}
               />
             </div>
           ) : null}
 
           {submitError ? (
             <div className="mb-6">
-              <AsyncFeedback tone="error" title="Couldn't finish challenge" message={submitError} />
+              <AsyncFeedback tone="error" title={t("playChallengeFinishFailedTitle")} message={submitError} />
             </div>
           ) : null}
 
@@ -226,7 +228,7 @@ const PlayChallenge = () => {
               <CardContent>
                 <Textarea
                   rows={5}
-                  placeholder="Write your answer..."
+                  placeholder={t("playChallengeAnswerPlaceholder")}
                   value={
                     answers[
                       question.id
@@ -255,7 +257,7 @@ const PlayChallenge = () => {
               }
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Previous
+              {t("storyPreviousScene")}
             </Button>
 
             {currentQuestion <
@@ -267,7 +269,7 @@ const PlayChallenge = () => {
                   )
                 }
               >
-                Next
+                {t("storyNextScene")}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             ) : (
@@ -282,7 +284,7 @@ const PlayChallenge = () => {
               >
                 <Trophy className="w-4 h-4 mr-2" />
 
-                {"Finish Challenge"}
+                {t("playChallengeFinish")}
               </Button>
             )}
           </div>

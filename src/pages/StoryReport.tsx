@@ -16,6 +16,7 @@ import {
   CheckCircle,
   AlertTriangle,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 type Evaluation = {
@@ -68,7 +69,7 @@ export default function StoryReport () {
             setData(res.data)
         }catch(err){
             console.log(err)
-            setError("The story report could not be loaded.")
+            setError(t("storyReportLoadFailedMessage"))
         }finally{
             setLoading(false)
         }
@@ -82,8 +83,8 @@ export default function StoryReport () {
       <div className="w-full max-w-2xl">
         <AsyncFeedback
           tone="loading"
-          title="Loading story report"
-          message="Gathering the evaluation summary and question-by-question feedback."
+          title={t("storyReportLoadingTitle")}
+          message={t("storyReportLoadingMessage")}
         />
       </div>
     </div>
@@ -96,8 +97,8 @@ export default function StoryReport () {
       <div className="w-full max-w-2xl">
         <PageState
           icon={FileText}
-          title="Report not available"
-          description={error || "This report could not be found."}
+          title={t("storyReportUnavailableTitle")}
+          description={error || t("storyReportUnavailableMessage")}
           tone="warning"
         />
       </div>
@@ -119,7 +120,7 @@ const evaluations =
         <div className="mb-8">
 
         <h1 className="text-4xl font-bold">
-        {storyTitle || "Story Report"}
+        {storyTitle || t("storyReportTitle")}
         </h1>
 
         {educationalGoal && (

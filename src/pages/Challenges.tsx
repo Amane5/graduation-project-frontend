@@ -70,7 +70,7 @@ const Challenges = () => {
 
       setError(true);
 
-      toast.error("Failed to load challenges");
+      toast.error(t("challengesLoadFailedTitle"));
     } finally {
       setLoading(false);
     }
@@ -100,12 +100,12 @@ const Challenges = () => {
       );
 
       toast.success(
-        "Challenge deleted successfully"
+        t("challengeDeletedSuccess")
       );
     } catch (err) {
       console.log(err);
 
-      toast.error("Failed to delete challenge");
+      toast.error(t("challengeDeleteFailed"));
     } finally {
       setDeletingId(null);
     }
@@ -166,7 +166,7 @@ const Challenges = () => {
               <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
 
               <p className="text-muted-foreground text-sm">
-                Loading challenges...
+                {t("challengesLoading")}
               </p>
             </div>
           )}
@@ -180,7 +180,7 @@ const Challenges = () => {
               </div>
 
               <h3 className="font-bold text-lg">
-                Failed to load challenges
+                {t("challengesLoadFailedTitle")}
               </h3>
 
               <Button
@@ -188,7 +188,7 @@ const Challenges = () => {
                 className="mt-4"
                 onClick={loadChallenges}
               >
-                Try Again
+                {t("tryAgain")}
               </Button>
             </div>
           )}
@@ -204,12 +204,11 @@ const Challenges = () => {
                 </div>
 
                 <h3 className="text-xl font-bold mb-2">
-                  No Challenges Found
+                  {t("NoChallenges")}
                 </h3>
 
                 <p className="text-muted-foreground">
-                  Create your first challenge
-                  to start learning.
+                  {t("NoChallengesHint")}
                 </p>
               </div>
             )}
@@ -373,8 +372,8 @@ const Challenges = () => {
       <DeleteChildModal
               open={!!deletingId}
               onOpenChange={(o) => !o && setDeletingId(null)}
-              title="Delete Challenge"
-              description="Are you sure you want to delete this challenge?"
+              title={t("deleteChallengeTitle")}
+              description={t("deleteChallengeDescription")}
               onConfirm={() => deletingId && handleDelete(deletingId)}
         />
     </div>

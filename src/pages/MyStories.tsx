@@ -100,8 +100,8 @@ export default function MyStories() {
         setTranscribingQuestionId(questionId);
         setFeedback({
           tone: "loading",
-          title: "Transcribing answer",
-          message: "Turning the recorded voice answer into text for this question.",
+          title: t("myStoriesTranscribingTitle"),
+          message: t("myStoriesTranscribingMessage"),
         });
         const response = await speechToTextQuestion(questionId, blob);
 
@@ -111,15 +111,15 @@ export default function MyStories() {
         }));
         setFeedback({
           tone: "success",
-          title: "Answer ready",
-          message: "The recorded answer was transcribed and added to the question.",
+          title: t("myStoriesAnswerReadyTitle"),
+          message: t("myStoriesAnswerReadyMessage"),
         });
       } catch (error) {
         console.log(error);
         setFeedback({
           tone: "error",
-          title: "Couldn't transcribe recording",
-          message: "The recording was captured, but the transcript could not be generated. You can record again or type the answer.",
+          title: t("myStoriesTranscribeFailedTitle"),
+          message: t("myStoriesTranscribeFailedMessage"),
         });
       } finally {
         setRecordingQuestionId(null);
@@ -195,11 +195,11 @@ export default function MyStories() {
 
     try {
       setSubmittingAnswers(true);
-      setFeedback({
-        tone: "loading",
-        title: "Submitting answers",
-        message: "Saving all answers and preparing the story celebration.",
-      });
+        setFeedback({
+          tone: "loading",
+          title: t("myStoriesSubmittingAnswersTitle"),
+          message: t("myStoriesSubmittingAnswersMessage"),
+        });
       await submitAnswers(selectedStory.id, {
         answers: selectedStory.questions.map((question) => ({
           questionId: question.id,
@@ -213,18 +213,18 @@ export default function MyStories() {
       window.setTimeout(() => {
         setShowConfetti(false);
       }, 5000);
-      setFeedback({
-        tone: "success",
-        title: "Answers submitted",
-        message: "The answers were saved successfully.",
-      });
+        setFeedback({
+          tone: "success",
+          title: t("myStoriesAnswersSubmittedTitle"),
+          message: t("myStoriesAnswersSubmittedMessage"),
+        });
     } catch (error) {
       console.log(error);
-      setFeedback({
-        tone: "error",
-        title: "Couldn't submit answers",
-        message: "The answers were not saved. Retry once you are ready.",
-      });
+        setFeedback({
+          tone: "error",
+          title: t("myStoriesSubmitFailedTitle"),
+          message: t("myStoriesSubmitFailedMessage"),
+        });
     } finally {
       setSubmittingAnswers(false);
     }
@@ -233,11 +233,11 @@ export default function MyStories() {
   const handlePlayQuestionAudio = async (questionId: number) => {
     try {
       setPlayingAudioId(questionId);
-      setFeedback({
-        tone: "loading",
-        title: "Preparing audio",
-        message: "Generating the spoken version of this question.",
-      });
+        setFeedback({
+          tone: "loading",
+          title: t("myStoriesPreparingAudioTitle"),
+          message: t("myStoriesPreparingAudioMessage"),
+        });
 
       const response = await generateQuestionAudio(questionId);
       const audio = new Audio(resolveAssetUrl(response.data.audioUrl));
@@ -250,11 +250,11 @@ export default function MyStories() {
     } catch (error) {
       console.log(error);
       setPlayingAudioId(null);
-      setFeedback({
-        tone: "error",
-        title: "Couldn't play question audio",
-        message: "The audio version of this question could not be generated. Please try again.",
-      });
+        setFeedback({
+          tone: "error",
+          title: t("myStoriesAudioFailedTitle"),
+          message: t("myStoriesAudioFailedMessage"),
+        });
     }
   };
 
@@ -280,16 +280,16 @@ export default function MyStories() {
           {storiesState === "loading" ? (
             <AsyncFeedback
               tone="loading"
-              title="Loading stories"
-              message="Getting the latest stories and questions for this child."
+              title={t("myStoriesLoadingTitle")}
+              message={t("myStoriesLoadingMessage")}
             />
           ) : null}
 
           {storiesState === "error" ? (
             <PageState
               icon={BookOpen}
-              title="Couldn't load stories"
-              description="The story library did not load correctly. Refresh the page to try again."
+              title={t("myStoriesLoadFailedTitle")}
+              description={t("myStoriesLoadFailedMessage")}
               tone="warning"
             />
           ) : null}
@@ -562,7 +562,7 @@ export default function MyStories() {
               >
                 <Trophy className="h-4 w-4" />
                 {submittingAnswers
-                  ? "Submitting..."
+                  ? t("myStoriesSubmittingShort")
                   : answersSubmitted
                     ? t("storyAnswersSubmitted")
                     : t("storySubmitAnswers")}

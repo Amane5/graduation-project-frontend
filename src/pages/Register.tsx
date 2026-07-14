@@ -123,7 +123,7 @@ const Register = () => {
       const message =
         error instanceof ApiError
           ? error.message
-          : "Something went wrong while creating the account. Please try again.";
+          : t("registerCreateFailedMessage");
 
       setSubmitError(message);
       setShakeKey((current) => current + 1);
@@ -163,12 +163,12 @@ const Register = () => {
               <AsyncFeedback
                 tone="loading"
                 title={t("createAccount")}
-                message="Creating the account and preparing email verification."
+                message={t("registerCreatingMessage")}
               />
             ) : null}
 
             {submitError ? (
-              <AsyncFeedback tone="error" title="Couldn't create account" message={submitError} />
+              <AsyncFeedback tone="error" title={t("registerCreateFailedTitle")} message={submitError} />
             ) : null}
 
             <Field

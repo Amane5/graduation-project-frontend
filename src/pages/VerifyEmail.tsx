@@ -54,7 +54,7 @@ const VerifyEmail = () => {
 
   const handleVerify = async (code: string) => {
     if (!email) {
-      setError("We couldn't find your email. Please register again.");
+      setError(t("verifyEmailMissingEmail"));
       return;
     }
 
@@ -72,18 +72,18 @@ const VerifyEmail = () => {
           window.sessionStorage.removeItem(PENDING_EMAIL_KEY);
         }
 
-        toast.success("Email verified!", {
-          description: "Your account is ready. Sign in to continue.",
+        toast.success(t("verifyEmailSuccessTitle"), {
+          description: t("verifyEmailSuccessDescription"),
         });
         navigate("/login");
       }
     } catch (e) {
       const reason = (e as Error).message.toLowerCase();
       const msg = reason.includes("expired")
-        ? "This code has expired. Please request a new one."
+        ? t("verifyEmailExpired")
         : reason.includes("not found") || reason.includes("pending")
-          ? "We couldn't find a pending sign-up for this email. Please register again."
-          : "That code doesn't look right. Try again.";
+          ? t("verifyEmailPendingMissing")
+          : t("verifyEmailInvalid");
       setError(msg);
       setShake((key) => key + 1);
       setOtp("");
@@ -94,7 +94,7 @@ const VerifyEmail = () => {
 
   const handleResend = async () => {
     if (!email) {
-      toast.error("We don't know which email to resend to. Please register again.");
+      toast.error(t("verifyEmailResendMissingEmail"));
       navigate("/register");
       return;
     }
@@ -105,16 +105,16 @@ const VerifyEmail = () => {
       setResendIn(RESEND_SECONDS);
       setOtp("");
       setError("");
-      toast.success("New code sent!", {
-        description: `Check ${email} for your fresh code.`,
+      toast.success(t("verifyEmailResentTitle"), {
+        description: t("verifyEmailResentDescription", { email }),
       });
     } catch (e) {
       const reason = (e as Error).message.toLowerCase();
       const msg = reason.includes("already")
-        ? "This email is already verified. Please sign in instead."
+        ? t("verifyEmailAlreadyVerified")
         : reason.includes("not found")
-          ? "We couldn't find a pending sign-up for this email. Please register again."
-          : "Couldn't resend the code right now. Please try again.";
+          ? t("verifyEmailPendingMissing")
+          : t("verifyEmailResendFailed");
       toast.error(msg);
     } finally {
       setResending(false);
@@ -144,7 +144,7 @@ const VerifyEmail = () => {
           <p className="text-muted-foreground text-sm mb-7">
             {t("weSentCode")}{" "}
             <span className="font-semibold text-foreground break-all">
-              {email || "your email address"}
+              {email || t("verifyEmailFallbackAddress")}
             </span>
           </p>
 
@@ -171,7 +171,7 @@ const VerifyEmail = () => {
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Verifying...
+                {t("verifyEmailVerifying")}
               </>
             ) : (
               t("verifyEmail")
@@ -194,7 +194,7 @@ const VerifyEmail = () => {
                 <RefreshCw
                   className={cn("w-3.5 h-3.5", resending && "animate-spin")}
                 />
-                {resending ? "Sending..." : t("resendCode")}
+                {resending ? t("verifyEmailSending") : t("resendCode")}
               </button>
             )}
           </div>

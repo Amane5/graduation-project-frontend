@@ -112,8 +112,8 @@ export default function MyFiles() {
       setUploading(true);
       setFeedback({
         tone: "loading",
-        title: "Uploading file",
-        message: "Sending the file and linking it to the selected children.",
+        title: t("myFilesUploadingTitle"),
+        message: t("myFilesUploadingMessage"),
       });
       await uploadFile(selectedFile, selectedChildren.map(Number));
       await loadFiles();
@@ -123,16 +123,16 @@ export default function MyFiles() {
       setShowAlert(false);
       setFeedback({
         tone: "success",
-        title: "Upload complete",
-        message: "The file is ready and now appears in the library below.",
+        title: t("myFilesUploadCompleteTitle"),
+        message: t("myFilesUploadCompleteMessage"),
       });
     } catch (error) {
       console.log(error);
       setShowAlert(false);
       setFeedback({
         tone: "error",
-        title: "Upload failed",
-        message: "The file was not uploaded. Try again with the same file.",
+        title: t("myFilesUploadFailedTitle"),
+        message: t("myFilesUploadFailedMessage"),
       });
     } finally {
       setUploading(false);
@@ -166,8 +166,8 @@ export default function MyFiles() {
       setSavingEdit(true);
       setFeedback({
         tone: "loading",
-        title: "Updating file",
-        message: "Saving the child assignments for this file.",
+        title: t("myFilesUpdatingTitle"),
+        message: t("myFilesUpdatingMessage"),
       });
       await updateFile(editingFile.id, editChildren.map(Number));
       await loadFiles();
@@ -176,15 +176,15 @@ export default function MyFiles() {
       setEditChildren([]);
       setFeedback({
         tone: "success",
-        title: "File updated",
-        message: "The file’s child assignments were saved.",
+        title: t("myFilesUpdatedTitle"),
+        message: t("myFilesUpdatedMessage"),
       });
     } catch (error) {
       console.log(error);
       setFeedback({
         tone: "error",
-        title: "Couldn't update file",
-        message: "The file still has its previous child assignments. Please try again.",
+        title: t("myFilesUpdateFailedTitle"),
+        message: t("myFilesUpdateFailedMessage"),
       });
     } finally {
       setSavingEdit(false);
@@ -305,7 +305,7 @@ export default function MyFiles() {
             className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Upload className="h-5 w-5" />
-            {uploading ? "Uploading..." : t("uploadFile")}
+            {uploading ? t("progress_uploading") : t("uploadFile")}
           </button>
         </div>
 
@@ -330,8 +330,8 @@ export default function MyFiles() {
           {filesState === "error" ? (
             <PageState
               icon={AlertTriangleIcon}
-              title="Couldn't load files"
-              description="The file library did not load. Retry to see uploaded documents again."
+              title={t("myFilesLoadFailedTitle")}
+              description={t("myFilesLoadFailedMessage")}
               actionLabel={t("tryAgain")}
               onAction={() => {
                 void loadFiles();
@@ -343,8 +343,8 @@ export default function MyFiles() {
           {filesState === "ready" && files.length === 0 ? (
             <PageState
               icon={FileText}
-              title="No files yet"
-              description="Uploaded files will appear here once the first document is added for a child."
+              title={t("myFilesEmptyTitle")}
+              description={t("myFilesEmptyMessage")}
             />
           ) : null}
 
@@ -449,3 +449,4 @@ export default function MyFiles() {
     </div>
   );
 }
+

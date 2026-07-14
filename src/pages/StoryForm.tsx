@@ -16,6 +16,11 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotificationHandler } from "@/hooks/useFirebaseNotifications";
+import {
+  type LocalizedFeedbackState,
+  translateI18nKey,
+  translateLocalizedText,
+} from "@/lib/i18n-feedback";
 import { getChildren } from "@/lib/children";
 import {
   addQuestions,
@@ -70,12 +75,6 @@ interface StoryEditMessage {
   text: string;
 }
 
-type FeedbackState = {
-  tone: "loading" | "success" | "error" | "info";
-  title?: string;
-  message: string;
-} | null;
-
 const resolveAssetUrl = (url?: string | null) => {
   if (!url) return "";
   if (url.startsWith("http")) return url;
@@ -120,15 +119,15 @@ export default function StoryForm() {
   const [approvingQuestions, setApprovingQuestions] = useState(false);
   const [generationStep, setGenerationStep] = useState("");
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const [generatorFeedback, setGeneratorFeedback] = useState<FeedbackState>(null);
-  const [storyFeedback, setStoryFeedback] = useState<FeedbackState>(null);
-  const [editorFeedback, setEditorFeedback] = useState<FeedbackState>(null);
-  const [questionFeedback, setQuestionFeedback] = useState<FeedbackState>(null);
+  const [generatorFeedback, setGeneratorFeedback] = useState<LocalizedFeedbackState | null>(null);
+  const [storyFeedback, setStoryFeedback] = useState<LocalizedFeedbackState | null>(null);
+  const [editorFeedback, setEditorFeedback] = useState<LocalizedFeedbackState | null>(null);
+  const [questionFeedback, setQuestionFeedback] = useState<LocalizedFeedbackState | null>(null);
   const formLocked = loading || generatedStory !== null;
   useNotificationHandler({
     type: "AI_PROGRESS",
     handler: (payload) => {
-      setGenerationStep(payload.data?.step || "");
+      setGenerationStep(payload.data?.stepKey || payload.data?.step || "");
     },
   });
 
@@ -170,8 +169,8 @@ export default function StoryForm() {
         console.log(error);
         setEditorFeedback({
           tone: "error",
-          title: t("aiStoryEditor"),
-          message: "Couldn't load the editing history. You can still send a new instruction.",
+          title: { key: "aiStoryEditor" },
+          message: { key: "storyFormLoadEditorHistoryFailed" },
         });
       } finally {
         setEditorMessagesLoading(false);
@@ -203,19 +202,19 @@ export default function StoryForm() {
     if (!selectedChild || !form.behavior.trim() || !form.length || !form.type) {
       setGeneratorFeedback({
         tone: "error",
-        title: t("storyGeneratorTitle"),
-        message: "Choose a child and complete the story details before generating.",
+        title: { key: "storyGeneratorTitle" },
+        message: { key: "storyFormCompleteDetailsFirst" },
       });
       return;
     }
 
     try {
-      setGenerationStep(t("storyGeneratorStarting"));
+      setGenerationStep("progress_starting");
       setLoading(true);
       setGeneratorFeedback({
         tone: "loading",
-        title: t("storyGeneratorTitle"),
-        message: "Creating the story now. You can keep reading the progress here while the AI works.",
+        title: { key: "storyGeneratorTitle" },
+        message: { key: "storyFormCreatingStoryMessage" },
       });
       const response = await generateStory({
         educationalGoal: form.behavior,
@@ -229,8 +228,8 @@ export default function StoryForm() {
       setIsEditing(false);
       setGeneratorFeedback({
         tone: "success",
-        title: "Story ready",
-        message: "The story has been generated. Review the scenes, then approve or refine them below.",
+        title: { key: "storyFormStoryReadyTitle" },
+        message: { key: "storyFormStoryReadyMessage" },
       });
       setStoryFeedback(null);
       setEditorFeedback(null);
@@ -239,8 +238,8 @@ export default function StoryForm() {
       console.log(error);
       setGeneratorFeedback({
         tone: "error",
-        title: "Story generation failed",
-        message: "The story could not be generated this time. Check the details and try again.",
+        title: { key: "storyFormGenerationFailedTitle" },
+        message: { key: "storyFormGenerationFailedMessage" },
       });
     } finally {
       setGenerationStep("");
@@ -256,8 +255,8 @@ export default function StoryForm() {
       setAiLoading(true);
       setEditorFeedback({
         tone: "loading",
-        title: t("aiStoryEditor"),
-        message: "Applying your editing request and preparing an updated version of the story.",
+        title: { key: "aiStoryEditor" },
+        message: { key: "storyFormApplyingAiEditMessage" },
       });
       setChatMessages((prev) => [...prev, { role: "user", text: aiMessage }]);
 
@@ -278,8 +277,8 @@ export default function StoryForm() {
       setAiMessage("");
       setEditorFeedback({
         tone: "success",
-        title: "Story updated",
-        message: response.data.summaryOfChanges || t("storyEditorUpdated"),
+        title: { key: "storyFormStoryUpdatedTitle" },
+        message: { key: "storyEditorUpdated" },
       });
       setStoryFeedback(null);
       setQuestionFeedback(null);
@@ -287,8 +286,8 @@ export default function StoryForm() {
       console.log(error);
       setEditorFeedback({
         tone: "error",
-        title: "AI edit failed",
-        message: "The AI could not update the story right now. Try a simpler instruction or send it again.",
+        title: { key: "storyFormAiEditFailedTitle" },
+        message: { key: "storyFormAiEditFailedMessage" },
       });
     } finally {
       setAiLoading(false);
@@ -302,8 +301,8 @@ export default function StoryForm() {
       setSavingEdit(true);
       setStoryFeedback({
         tone: "loading",
-        title: "Saving edits",
-        message: "Updating the story scenes and syncing your changes.",
+        title: { key: "storyFormSavingEditsTitle" },
+        message: { key: "storyFormSavingEditsMessage" },
       });
       const response = await updateStory(generatedStory.story.id, {
         educationalGoal: form.behavior,
@@ -329,16 +328,16 @@ export default function StoryForm() {
       }, 3000);
       setStoryFeedback({
         tone: "success",
-        title: "Changes saved",
-        message: "Your manual edits were saved successfully.",
+        title: { key: "storyFormChangesSavedTitle" },
+        message: { key: "storyFormChangesSavedMessage" },
       });
       setQuestionFeedback(null);
     } catch (error) {
       console.log(error);
       setStoryFeedback({
         tone: "error",
-        title: "Couldn't save edits",
-        message: "The story changes were not saved. Try again to keep your updates.",
+        title: { key: "storyFormSaveEditsFailedTitle" },
+        message: { key: "storyFormSaveEditsFailedMessage" },
       });
     } finally {
       setSavingEdit(false);
@@ -352,21 +351,21 @@ export default function StoryForm() {
       setApprovingStory(true);
       setStoryFeedback({
         tone: "loading",
-        title: "Approving story",
-        message: "Publishing the story so question generation can continue.",
+        title: { key: "storyFormApprovingStoryTitle" },
+        message: { key: "storyFormApprovingStoryMessage" },
       });
       await approveStory(generatedStory.story.id);
       setStoryFeedback({
         tone: "success",
-        title: "Story approved",
-        message: "The story is approved. You can generate the child questions next.",
+        title: { key: "storyFormStoryApprovedTitle" },
+        message: { key: "storyFormStoryApprovedMessage" },
       });
     } catch (error) {
       console.log(error);
       setStoryFeedback({
         tone: "error",
-        title: "Approval failed",
-        message: "The story was not approved. Please try again.",
+        title: { key: "storyFormApprovalFailedTitle" },
+        message: { key: "storyFormApprovalFailedMessage" },
       });
       return;
     } finally {
@@ -389,22 +388,22 @@ export default function StoryForm() {
       setQuestionLoading(true);
       setQuestionFeedback({
         tone: "loading",
-        title: "Generating questions",
-        message: "Creating reflection questions for this story. This can take a few seconds.",
+        title: { key: "storyFormGeneratingQuestionsTitle" },
+        message: { key: "storyFormGeneratingQuestionsMessage" },
       });
       const response = await generateQuestions(generatedStory.story.id);
       setQuestions(response.data);
       setQuestionFeedback({
         tone: "success",
-        title: "Questions ready",
-        message: "The generated questions are ready for review and editing.",
+        title: { key: "storyFormQuestionsReadyTitle" },
+        message: { key: "storyFormQuestionsReadyMessage" },
       });
     } catch (error) {
       console.log(error);
       setQuestionFeedback({
         tone: "error",
-        title: "Question generation failed",
-        message: "Questions could not be generated. Try again when you’re ready.",
+        title: { key: "storyFormQuestionGenerationFailedTitle" },
+        message: { key: "storyFormQuestionGenerationFailedMessage" },
       });
     } finally {
       setQuestionLoading(false);
@@ -422,15 +421,15 @@ export default function StoryForm() {
       setShowAddQuestion(false);
       setQuestionFeedback({
         tone: "success",
-        title: "Question added",
-        message: "The new question is now part of the review list.",
+        title: { key: "storyFormQuestionAddedTitle" },
+        message: { key: "storyFormQuestionAddedMessage" },
       });
     } catch (error) {
       console.log(error);
       setQuestionFeedback({
         tone: "error",
-        title: "Couldn't add question",
-        message: "The new question was not saved. Try adding it again.",
+        title: { key: "storyFormAddQuestionFailedTitle" },
+        message: { key: "storyFormAddQuestionFailedMessage" },
       });
     } finally {
       setAddingQuestion(false);
@@ -444,15 +443,15 @@ export default function StoryForm() {
       setQuestions((prev) => prev.filter((question) => question.id !== questionId));
       setQuestionFeedback({
         tone: "success",
-        title: "Question removed",
-        message: "The question has been removed from this story.",
+        title: { key: "storyFormQuestionRemovedTitle" },
+        message: { key: "storyFormQuestionRemovedMessage" },
       });
     } catch (error) {
       console.log(error);
       setQuestionFeedback({
         tone: "error",
-        title: "Couldn't remove question",
-        message: "The question is still here because the delete request failed.",
+        title: { key: "storyFormRemoveQuestionFailedTitle" },
+        message: { key: "storyFormRemoveQuestionFailedMessage" },
       });
     } finally {
       setDeletingQuestionId(null);
@@ -470,15 +469,15 @@ export default function StoryForm() {
       setEditedQuestion("");
       setQuestionFeedback({
         tone: "success",
-        title: "Question updated",
-        message: "Your edits to the question were saved.",
+        title: { key: "storyFormQuestionUpdatedTitle" },
+        message: { key: "storyFormQuestionUpdatedMessage" },
       });
     } catch (error) {
       console.log(error);
       setQuestionFeedback({
         tone: "error",
-        title: "Couldn't update question",
-        message: "The edited question was not saved. Please try again.",
+        title: { key: "storyFormUpdateQuestionFailedTitle" },
+        message: { key: "storyFormUpdateQuestionFailedMessage" },
       });
     } finally {
       setUpdatingQuestionId(null);
@@ -492,8 +491,8 @@ export default function StoryForm() {
       setApprovingQuestions(true);
       setQuestionFeedback({
         tone: "loading",
-        title: "Approving questions",
-        message: "Finalizing the questions and opening the child story library next.",
+        title: { key: "storyFormApprovingQuestionsTitle" },
+        message: { key: "storyFormApprovingQuestionsMessage" },
       });
       const response = await approveQuestions(generatedStory.story.id);
       const childId = response.data?.childId ?? generatedStory.story.childId;
@@ -507,8 +506,8 @@ export default function StoryForm() {
       console.log(error);
       setQuestionFeedback({
         tone: "error",
-        title: "Couldn't approve questions",
-        message: "The questions are still in review because approval did not finish.",
+        title: { key: "storyFormApproveQuestionsFailedTitle" },
+        message: { key: "storyFormApproveQuestionsFailedMessage" },
       });
     } finally {
       setApprovingQuestions(false);
@@ -536,8 +535,8 @@ export default function StoryForm() {
             {generatorFeedback ? (
               <AsyncFeedback
                 tone={generatorFeedback.tone}
-                title={generatorFeedback.title}
-                message={generatorFeedback.message}
+                title={translateLocalizedText(generatorFeedback.title, t)}
+                message={translateLocalizedText(generatorFeedback.message, t)}
               />
             ) : null}
 
@@ -678,7 +677,7 @@ export default function StoryForm() {
 
             {loading ? (
               <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
-                {generationStep || t("storyGeneratorGenerating")}
+                {translateI18nKey(generationStep, t) || t("storyGeneratorGenerating")}
               </div>
             ) : null}
           </div>
@@ -709,8 +708,8 @@ export default function StoryForm() {
               {storyFeedback ? (
                 <AsyncFeedback
                   tone={storyFeedback.tone}
-                  title={storyFeedback.title}
-                  message={storyFeedback.message}
+                  title={translateLocalizedText(storyFeedback.title, t)}
+                  message={translateLocalizedText(storyFeedback.message, t)}
                 />
               ) : null}
 
@@ -803,17 +802,17 @@ export default function StoryForm() {
           <section className="mt-8 rounded-[2rem] border border-border/50 bg-card/90 p-6 shadow-card backdrop-blur-sm">
             <div className="mb-6">
               <h2 className="text-2xl font-bold">{t("storyQuestionsTitle")}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              {/* <p className="mt-1 text-sm text-muted-foreground">
                 {t("storyQuestionsReviewDescription")}
-              </p>
+              </p> */}
             </div>
 
             {questionFeedback ? (
               <div className="mb-6">
                 <AsyncFeedback
                   tone={questionFeedback.tone}
-                  title={questionFeedback.title}
-                  message={questionFeedback.message}
+                  title={translateLocalizedText(questionFeedback.title, t)}
+                  message={translateLocalizedText(questionFeedback.message, t)}
                 />
               </div>
             ) : null}
@@ -959,8 +958,8 @@ export default function StoryForm() {
             {editorFeedback ? (
               <AsyncFeedback
                 tone={editorFeedback.tone}
-                title={editorFeedback.title}
-                message={editorFeedback.message}
+                title={translateLocalizedText(editorFeedback.title, t)}
+                message={translateLocalizedText(editorFeedback.message, t)}
               />
             ) : null}
 
@@ -1029,3 +1028,4 @@ export default function StoryForm() {
     </div>
   );
 }
+

@@ -48,7 +48,7 @@ const Login = () => {
 
     setLoading(true);
     setError("");
-    setStatusMessage("Signing you in and preparing your dashboard.");
+    setStatusMessage("loginStatusSigningIn");
 
 
     try {
@@ -104,7 +104,7 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {statusMessage && !error ? (
-              <AsyncFeedback tone="loading" title={t("login")} message={statusMessage} />
+              <AsyncFeedback tone="loading" title={t("login")} message={t(statusMessage)} />
             ) : null}
 
             <div>
@@ -166,7 +166,7 @@ const Login = () => {
               </div>
             </div>
             {error && (
-              <AsyncFeedback tone="error" title="Couldn't sign in" message={error} />
+              <AsyncFeedback tone="error" title={t("loginErrorTitle")} message={error} />
             )}
 
             <Button

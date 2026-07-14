@@ -6,6 +6,9 @@ import ar from "./ar.json";
 
 const LANGUAGE_KEY = "lang";
 const LEGACY_LANGUAGE_KEY = "language";
+const LANGUAGE_DB = "kidspark-i18n";
+const LANGUAGE_STORE = "settings";
+const LANGUAGE_RECORD_KEY = "language";
 
 const getStoredLanguage = () => {
   const savedLang =
@@ -25,6 +28,29 @@ const getStoredLanguage = () => {
 };
 
 const savedLang = getStoredLanguage();
+
+const persistLanguageForNotifications = (lng: string) => {
+  if (typeof window === "undefined" || !("indexedDB" in window)) {
+    return;
+  }
+
+  const request = window.indexedDB.open(LANGUAGE_DB, 1);
+
+  request.onupgradeneeded = () => {
+    const db = request.result;
+
+    if (!db.objectStoreNames.contains(LANGUAGE_STORE)) {
+      db.createObjectStore(LANGUAGE_STORE);
+    }
+  };
+
+  request.onsuccess = () => {
+    const db = request.result;
+    const transaction = db.transaction(LANGUAGE_STORE, "readwrite");
+    transaction.objectStore(LANGUAGE_STORE).put(lng, LANGUAGE_RECORD_KEY);
+    transaction.oncomplete = () => db.close();
+  };
+};
 
 i18n
   .use(initReactI18next)
@@ -48,5 +74,8 @@ i18n
 i18n.on("languageChanged", (lng) => {
   localStorage.setItem(LANGUAGE_KEY, lng);
   document.documentElement.dir = lng === "ar" ? "rtl" : "ltr";
+  persistLanguageForNotifications(lng);
 });
+
+persistLanguageForNotifications(savedLang);
 export default i18n;
