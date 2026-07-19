@@ -204,8 +204,8 @@ console.log(res);
     {loading ? (
       <AsyncFeedback
         tone="loading"
-        title={activeTab === "story" ? "Loading story reports" : "Loading chat report"}
-        message="Fetching the latest report data for this child."
+        title={activeTab === "story" ? t("Loading story reports") : t("Loading chat report")}
+        message={t("Fetching the latest report data for this child.")}
         className="mb-6"
       />
     ) : null}

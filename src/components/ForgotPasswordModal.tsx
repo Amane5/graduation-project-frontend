@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { forgotPassword } from "@/lib/auth";
 import { resetPassword } from "@/lib/auth";
+import { useTranslation } from "react-i18next";
 
 type Step = "email" | "otp" | "reset" | "success";
 
@@ -50,9 +51,10 @@ const ForgotPasswordModal = ({
     {},
   );
   const [showPwd, setShowPwd] = useState(false);
+  const [showRepeatPwd, setShowRepeatPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(0);
-
+  const {t} = useTranslation()
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
@@ -91,13 +93,13 @@ const ForgotPasswordModal = ({
     const trimmed = email.trim();
 
     if (!trimmed) {
-      setEmailError("Email is required");
+      setEmailError(t("Email is required"));
       triggerShake();
       return;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setEmailError("Invalid email format");
+      setEmailError(t("Invalid email format"));
       triggerShake();
       return;
     }
@@ -108,12 +110,12 @@ const ForgotPasswordModal = ({
     try {
       await forgotPassword({ email: trimmed });
 
-      toast.success("OTP sent successfully 💌");
+      toast.success(t("OTP sent successfully 💌"));
 
       setStep("otp");
       setSecondsLeft(RESEND_SECONDS);
     } catch (err) {
-      setEmailError("Failed to send OTP");
+      setEmailError(t("Failed to send OTP"));
       triggerShake();
     }
 
@@ -125,7 +127,7 @@ const ForgotPasswordModal = ({
     e.preventDefault();
 
     if (otp.length !== 6) {
-      setOtpError("Enter 6 digits");
+      setOtpError(t("Enter 6 digits"));
       triggerShake();
       return;
     }
@@ -156,8 +158,8 @@ const ForgotPasswordModal = ({
 
     const errs: { new?: string; repeat?: string } = {};
 
-    if (newPassword.length < 6) errs.new = "Minimum 6 chars";
-    if (newPassword !== repeatPassword) errs.repeat = "Passwords don't match";
+    if (newPassword.length < 6) errs.new = t("Minimum 6 chars");
+    if (newPassword !== repeatPassword) errs.repeat = t("Passwords don't match");
 
     setPwdErrors(errs);
 
@@ -177,7 +179,7 @@ const ForgotPasswordModal = ({
 
       setStep("success");
     } catch (err) {
-      setOtpError("Invalid or expired OTP ❌");
+      setOtpError(t("Invalid or expired OTP ❌"));
       setStep("otp");
       triggerShake();
     }
@@ -207,22 +209,23 @@ const ForgotPasswordModal = ({
                 <Mail className="w-7 h-7 text-primary-foreground" />
               </div>
               <DialogTitle className="text-2xl font-bold">
-                Forgot Password?
+                {t('Forgot Password?')}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                No worries! Enter your email and we'll send you a code 💌
+                {t('No worries! Enter your email and we will send you a code 💌')} 
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-2">
               <Label htmlFor="fp-email" className="text-sm font-semibold">
-                Email
+                {t('Email')}
               </Label>
               <Input
                 id="fp-email"
                 type="email"
                 placeholder="parent@example.com"
                 value={email}
+                disabled={loading}
                 onChange={(e) => {
                   setEmail(e.target.value);
                   if (emailError) setEmailError("");
@@ -250,10 +253,10 @@ const ForgotPasswordModal = ({
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Sending...
+                  {t("Sending...")}
                 </>
               ) : (
-                "Send OTP"
+                t("Send OTP")
               )}
             </Button>
           </form>
@@ -270,10 +273,10 @@ const ForgotPasswordModal = ({
                 <KeyRound className="w-7 h-7 text-primary-foreground" />
               </div>
               <DialogTitle className="text-2xl font-bold">
-                Enter Verification Code
+                {t('Enter Verification Code')}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                We sent a 6-digit code to{" "}
+                {t('We sent a 6-digit code to')}{" "}
                 <span className="font-semibold text-foreground">{email}</span>
               </DialogDescription>
             </DialogHeader>
@@ -298,7 +301,7 @@ const ForgotPasswordModal = ({
             <div className="text-center text-sm mb-4">
               {secondsLeft > 0 ? (
                 <p className="text-muted-foreground">
-                  Resend code in{" "}
+                  {t('Resend code in')}{" "}
                   <span className="font-semibold text-primary">
                     {secondsLeft}s
                   </span>
@@ -309,7 +312,7 @@ const ForgotPasswordModal = ({
                   onClick={handleResend}
                   className="text-primary font-semibold hover:underline underline-offset-4"
                 >
-                  Resend code
+                  {t('Resend code')}
                 </button>
               )}
             </div>
@@ -324,10 +327,10 @@ const ForgotPasswordModal = ({
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Verifying...
+                  {t('Verifying...')}
                 </>
               ) : (
-                "Verify Code"
+                t("Verify Code")
               )}
             </Button>
           </form>
@@ -341,23 +344,23 @@ const ForgotPasswordModal = ({
                 <Lock className="w-7 h-7 text-primary-foreground" />
               </div>
               <DialogTitle className="text-2xl font-bold">
-                Create New Password
+                {t('Create New Password')}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                Almost there! Pick a strong, fresh password ✨
+                {t('Almost there! Pick a strong, fresh password ✨')}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="new-pwd" className="text-sm font-semibold">
-                  New Password
+                  {t('New Password')}
                 </Label>
                 <div className="relative">
                   <Input
                     id="new-pwd"
                     type={showPwd ? "text" : "password"}
-                    placeholder="At least 6 characters"
+                    placeholder={t("At least 6 characters")}
                     value={newPassword}
                     onChange={(e) => {
                       setNewPassword(e.target.value);
@@ -393,12 +396,13 @@ const ForgotPasswordModal = ({
 
               <div className="space-y-1.5">
                 <Label htmlFor="repeat-pwd" className="text-sm font-semibold">
-                  Repeat New Password
+                  {t('Repeat New Password')}
                 </Label>
-                <Input
+                <div className="relative">
+                  <Input
                   id="repeat-pwd"
-                  type={showPwd ? "text" : "password"}
-                  placeholder="Type your password again"
+                  type={showRepeatPwd ? "text" : "password"}
+                  placeholder={t("Type your password again")}
                   value={repeatPassword}
                   onChange={(e) => {
                     setRepeatPassword(e.target.value);
@@ -407,10 +411,25 @@ const ForgotPasswordModal = ({
                   }}
                   aria-invalid={!!pwdErrors.repeat}
                   className={cn(
+                    "pr-12",
                     pwdErrors.repeat &&
                       "border-destructive focus-visible:border-destructive focus-visible:shadow-[0_0_0_4px_hsl(var(--destructive)/0.15)]",
                   )}
-                />
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRepeatPwd((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showRepeatPwd ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+                
                 {pwdErrors.repeat && (
                   <p className="text-xs text-destructive font-medium pl-1 animate-fade-slide-up">
                     {pwdErrors.repeat}
@@ -429,10 +448,10 @@ const ForgotPasswordModal = ({
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Updating...
+                  {t('Updating...')}
                 </>
               ) : (
-                "Reset Password"
+                t("Reset Password")
               )}
             </Button>
           </form>
@@ -447,9 +466,9 @@ const ForgotPasswordModal = ({
                 strokeWidth={2.2}
               />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Password updated! 🎉</h2>
+            <h2 className="text-2xl font-bold mb-2">{t('Password updated! 🎉')}</h2>
             <p className="text-muted-foreground text-sm mb-6">
-              You can now log in with your new password.
+              {t('You can now log in with your new password.')}
             </p>
             <Button
               variant="hero"
@@ -457,7 +476,7 @@ const ForgotPasswordModal = ({
               className="w-full"
               onClick={handleFinish}
             >
-              Back to Login
+              {t('Back to Login')}
             </Button>
           </div>
         )}

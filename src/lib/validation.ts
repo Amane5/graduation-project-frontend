@@ -23,9 +23,13 @@ export const registerSchema = z
       .trim()
       .min(3, { message: "Username must be at least 3 characters ✨" })
       .max(30)
-      .regex(/^[a-zA-Z0-9_]+$/, {
-        message: "Letters, numbers and _ only please 🙏",
-      }),
+      // .regex(/^[a-zA-Z0-9_]+$/, {
+      //   message: "Letters, numbers and _ only please 🙏",
+      // }),
+      .regex(
+        /^[\p{L}\p{N}_]+$/u,
+        "Username can contain letters and numbers only"
+      ),
 
     firstName: z
       .string()

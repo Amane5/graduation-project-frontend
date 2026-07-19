@@ -733,6 +733,7 @@ export default function StoryForm() {
                   <textarea
                     value={scene.content}
                     readOnly={!isEditing}
+                    disabled={savingEdit}
                     onChange={(event) => {
                       if (!generatedStory) return;
 
@@ -778,7 +779,7 @@ export default function StoryForm() {
                   <Button onClick={() => setIsEditing(true)} disabled={approvingStory || questionLoading}>
                     {t("editStory")}
                   </Button>
-                  <Button variant="outline" onClick={() => setShowAiEditor(true)} disabled={approvingStory || questionLoading}>
+                  <Button variant="outline" onClick={() => setShowAiEditor(true)} disabled={approvingStory || questionLoading || savingEdit}>
                     <Wand2 className="h-4 w-4" />
                     {t("editUsingAI")}
                   </Button>
@@ -1005,6 +1006,7 @@ export default function StoryForm() {
                 value={aiMessage}
                 onChange={(event) => setAiMessage(event.target.value)}
                 placeholder={t("askAiToModifyStory")}
+                disabled={loading}
                 className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground"
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {

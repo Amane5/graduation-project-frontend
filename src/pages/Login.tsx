@@ -122,6 +122,7 @@ const Login = () => {
                   type={showPwd ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  className={cn("pr-12")}
                 />
                 <button
                   type="button"

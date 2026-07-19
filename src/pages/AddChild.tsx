@@ -29,11 +29,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 interface Errors {
   firstName?: string;
   gender?: string;
-  lastName?: string;
   birthDate?: string;
   username?: string;
   password?: string;
@@ -56,7 +56,6 @@ const AddChild = () => {
   const { updateSessionUser, user } = useAuth();
 
   const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState("");
   // const [age, setAge] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -69,7 +68,6 @@ const AddChild = () => {
   const [errors, setErrors] = useState<Errors>({});
   const [touched, setTouched] = useState<Record<keyof Errors, boolean>>({
     firstName: false,
-    lastName: false,
     gender: false,
     birthDate: false,
     username: false,
@@ -99,8 +97,6 @@ const AddChild = () => {
     const e: Errors = {};
 
     if (!firstName.trim()) e.firstName = t("firstNameRequired");
-
-    if (!lastName.trim()) e.lastName = t("lastNameRequired");
 
     if (!birthDate) {
       e.birthDate = t("birthDateRequired");
@@ -167,7 +163,6 @@ const AddChild = () => {
         const payload = {
           id: editingChild.id,
           firstName,
-          lastName,
           gender,
           username,
           birthDate,
@@ -199,7 +194,6 @@ const AddChild = () => {
       } else {
         await createChild({
           firstName,
-          lastName,
           gender,
           username,
           password,
@@ -251,7 +245,6 @@ const AddChild = () => {
     if (!editingChild) return;
 
     setFirstName(editingChild.firstName || "");
-    setLastName(editingChild.lastName || "");
     setGender(editingChild.gender || "");
 
     setUsername(editingChild.username || "");
@@ -274,7 +267,6 @@ const AddChild = () => {
         .then((res) => {
           const child = res.data;
           setFirstName(child.firstName || "");
-          setLastName(child.lastName || "");
           setGender(child.gender || "");
           // setBirthDate(
           //   editingChild.birthDate.split("T")[0]
@@ -297,7 +289,6 @@ const AddChild = () => {
     if (isEditMode) return;
 
     setFirstName("");
-    setLastName("");
     setGender("");
     setBirthDate("");
     setUsername("");
@@ -366,22 +357,6 @@ const AddChild = () => {
             />
             {touched.firstName && errors.firstName && (
               <p className="text-red-500 text-sm">{errors.firstName}</p>
-            )}
-          </div>
-
-          <div>
-            <Label htmlFor="lastName">{t("lastName")}</Label>
-            <Input
-              id="lastName"
-              name="lastName"
-              autoComplete="family-name"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              onBlur={() => markTouched("lastName")}
-              aria-invalid={touched.lastName && !!errors.lastName}
-            />
-            {touched.lastName && errors.lastName && (
-              <p className="text-red-500 text-sm">{errors.lastName}</p>
             )}
           </div>
 
@@ -454,6 +429,7 @@ const AddChild = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     onBlur={() => markTouched("password")}
                     aria-invalid={touched.password && !!errors.password}
+                    className={cn("pr-12")}
                   />
 
                   <button
@@ -483,6 +459,7 @@ const AddChild = () => {
                     onChange={(e) => setRepeatPassword(e.target.value)}
                     onBlur={() => markTouched("repeatPassword")}
                     aria-invalid={touched.repeatPassword && !!errors.repeatPassword}
+                    className={cn("pr-12")}
                   />
 
                   <button
@@ -629,7 +606,6 @@ const AddChild = () => {
                 loading ||
                 pageLoading ||
                 !firstName.trim() ||
-                !lastName.trim() ||
                 !gender.trim() ||
                 !birthDate ||
                 !username.trim() ||

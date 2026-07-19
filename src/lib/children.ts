@@ -149,7 +149,6 @@ export const getDashboardStats = () =>
 // CREATE
 export const createChild = (data: {
   firstName: string;
-  lastName: string;
   gender:string
   username: string;
   password: string;
@@ -168,7 +167,6 @@ export const createChild = (data: {
 export const updateChild = (data: {
   id: string;
   firstName: string;
-  lastName: string;
   gender: string;
   username: string;
   birthDate: string;

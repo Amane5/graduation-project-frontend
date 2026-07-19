@@ -132,7 +132,7 @@ const Register = () => {
     }
   };
 
-  const showError = (key: keyof FormState) => touched[key] && errors[key];
+  const showError = (key: keyof FormState) => touched[key] && errors[key] ? t(errors[key]!) : false;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 py-12 playful-bg">
@@ -181,6 +181,7 @@ const Register = () => {
               onBlur={() => handleBlur("email")}
               error={showError("email")}
               autoComplete="email"
+              disabled={loading}
             />
 
             <Field
@@ -193,17 +194,18 @@ const Register = () => {
               onBlur={() => handleBlur("password")}
               error={showError("password")}
               autoComplete="new-password"
+              disabled={loading}
               rightIcon={
                 <button
                   type="button"
+                  disabled={loading}
                   onClick={() => setShowPwd((current) => !current)}
-                  className="text-muted-foreground hover:text-primary"
+                  className="text-muted-foreground hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {showPwd ? <EyeOff /> : <Eye />}
                 </button>
               }
             />
-
             <Field
               id="repeatPassword"
               label={t("repeatPassword")}
@@ -214,11 +216,13 @@ const Register = () => {
               onBlur={() => handleBlur("repeatPassword")}
               error={showError("repeatPassword")}
               autoComplete="new-password"
+              disabled={loading}
               rightIcon={
                 <button
                   type="button"
+                  disabled={loading}
                   onClick={() => setShowRepeat((current) => !current)}
-                  className="text-muted-foreground hover:text-primary"
+                  className="text-muted-foreground hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {showRepeat ? <EyeOff /> : <Eye />}
                 </button>
@@ -235,6 +239,7 @@ const Register = () => {
               onBlur={() => handleBlur("username")}
               error={showError("username")}
               autoComplete="username"
+              disabled={loading}
             />
 
             <div className="grid grid-cols-2 gap-3">
@@ -247,6 +252,7 @@ const Register = () => {
                 onChange={(value) => update("firstName", value)}
                 onBlur={() => handleBlur("firstName")}
                 error={showError("firstName")}
+                disabled={loading}
               />
               <Field
                 id="lastName"
@@ -257,6 +263,7 @@ const Register = () => {
                 onChange={(value) => update("lastName", value)}
                 onBlur={() => handleBlur("lastName")}
                 error={showError("lastName")}
+                disabled={loading}
               />
             </div>
 
@@ -296,6 +303,7 @@ interface FieldProps {
   error?: string | false;
   autoComplete?: string;
   rightIcon?: React.ReactNode;
+  disabled?: boolean;
 }
 
 const Field = ({
@@ -309,6 +317,7 @@ const Field = ({
   error,
   autoComplete,
   rightIcon,
+  disabled,
 }: FieldProps) => (
   <div className="space-y-1.5">
     <Label htmlFor={id}>{label}</Label>
@@ -321,9 +330,19 @@ const Field = ({
         onChange={(event) => onChange(event.target.value)}
         onBlur={onBlur}
         autoComplete={autoComplete}
-        className={cn(error && "border-red-500")}
+        // className={cn(error && "border-red-500")}
+        disabled={disabled}
+        className={cn(
+          rightIcon && "pr-10 rtl:pr-3 rtl:pl-10",
+          error && "border-red-500"
+        )}
       />
-      {rightIcon ? <div className="absolute right-3 top-2">{rightIcon}</div> : null}
+      {/* {rightIcon ? <div className="absolute right-3 top-2">{rightIcon}</div> : null} */}
+      {rightIcon ? (
+      <div className="absolute top-1/2 -translate-y-1/2 right-3 rtl:right-auto rtl:left-3">
+        {rightIcon}
+      </div>
+) : null}
     </div>
     {error ? <p className="text-xs text-red-500">{error}</p> : null}
   </div>

@@ -88,6 +88,7 @@ export default function ChildrenStories() {
   const [stories, setStories] = useState<Story[]>([]);
   const [search, setSearch] = useState("");
   const [editingStoryId, setEditingStoryId] = useState<number | null>(null);
+  const [savingStoryId, setSavingStoryId] = useState<number | null>(null);
   const [showAiEditor, setShowAiEditor] = useState(false);
   const [aiMessage, setAiMessage] = useState("");
   const [chatMessages, setChatMessages] = useState<StoryEditorMessage[]>([]);
@@ -139,6 +140,7 @@ export default function ChildrenStories() {
   };
 
   const handleSaveEdit = async (story: Story) => {
+    setSavingStoryId(story.id)
     try {
       const response = await updateStory(story.id, {
         scenes: story.scenes.map((scene) => ({
@@ -175,6 +177,8 @@ export default function ChildrenStories() {
       setEditingStoryId(null);
     } catch (error) {
       console.log(error);
+    } finally {
+      setSavingStoryId(null);
     }
   };
 
@@ -325,7 +329,6 @@ export default function ChildrenStories() {
       console.log(error);
     }
   };
-
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="mx-auto max-w-6xl">
@@ -359,7 +362,9 @@ export default function ChildrenStories() {
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2">
-            {filteredStories.map((story) => (
+            {filteredStories.map((story) => {
+              const isSaving = savingStoryId === story.id;
+              return(
               <div
                 key={story.id}
                 className="overflow-hidden rounded-[2rem] border border-border/50 bg-card shadow-md"
@@ -404,6 +409,7 @@ export default function ChildrenStories() {
                         {editingStoryId === story.id ? (
                           <textarea
                             value={scene.content}
+                            disabled={isSaving}
                             onChange={(event) => {
                               setStories((prev) =>
                                 prev.map((candidate) =>
@@ -520,7 +526,7 @@ export default function ChildrenStories() {
                       <>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button className="bg-yellow-600 hover:bg-yellow-600/90">
+                            <Button className="bg-yellow-600 hover:bg-yellow-600/90" disabled={isSaving} loading={isSaving} loadingText={t("saving...")}>
                               {t("saveEdit")}
                             </Button>
                           </AlertDialogTrigger>
@@ -534,7 +540,7 @@ export default function ChildrenStories() {
                             </AlertDialogHeader>
 
                             <AlertDialogFooter>
-                              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                              <AlertDialogCancel disabled={isSaving}>{t("cancel")}</AlertDialogCancel>
                               <AlertDialogAction onClick={() => handleSaveEdit(story)}>
                                 {t("save")}
                               </AlertDialogAction>
@@ -542,109 +548,122 @@ export default function ChildrenStories() {
                           </AlertDialogContent>
                         </AlertDialog>
 
-                        <Button variant="outline" onClick={() => setEditingStoryId(null)}>
+                        <Button disabled={isSaving} variant="outline" onClick={() => setEditingStoryId(null)}>
                           {t("cancel")}
                         </Button>
                       </>
-                    ) : null}
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button className="bg-red-600 hover:bg-red-600/90">
-                          {t("delete")}
-                        </Button>
-                      </AlertDialogTrigger>
-
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>{t("childrenStoriesDeleteTitle")}</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {t("childrenStoriesDeleteDescription")}
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(story.id)}>
+                    ) : (
+                    <>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button className="bg-red-600 hover:bg-red-600/90">
                             {t("delete")}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                          </Button>
+                        </AlertDialogTrigger>
 
-                    <Button
-                      onClick={() => {
-                        setSelectedStory(story);
-                        setEditingStoryId(story.id);
-                      }}
-                    >
-                      {t("editStory")}
-                    </Button>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t("childrenStoriesDeleteTitle")}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t("childrenStoriesDeleteDescription")}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
 
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedStory(story);
-                        setShowAiEditor(true);
-                      }}
-                    >
-                      {t("editUsingAI")}
-                    </Button>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(story.id)}>
+                              {t("delete")}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
 
-                    {!story.isApproved && story.status !== "PUBLISHED" ? (
-                      <Button
-                        className="bg-green-600 hover:bg-green-600/90"
-                        onClick={() => handleApprove(story.id)}
+                      {/* <Button
+                        onClick={() => {
+                          setSelectedStory(story);
+                          setEditingStoryId(story.id);
+                        }}
                       >
-                        {t("approveStory")}
-                      </Button>
-                    ) : null}
-
-                    {story.isApproved &&
-                    story.status !== "PUBLISHED" &&
-                    story.questions.length === 0 ? (
-                      <Button
-                        onClick={() => handleGenerateQuestions(story.id)}
-                        disabled={questionLoading}
-                      >
-                        {questionLoading
-                          ? t("storyGeneratingQuestions")
-                          : t("storyGenerateQuestions")}
-                      </Button>
-                    ) : null}
-
-                    {story.isApproved &&
-                    story.status !== "PUBLISHED" &&
-                    story.questions.length > 0 ? (
-                      <>
-                        <Button onClick={() => handleApproveQuestions(story.id)}>
-                          {t("storyApproveQuestions")}
-                        </Button>
-
+                        {t("editStory")}
+                      </Button> */}
+                      {editingStoryId !== story.id ? (
                         <Button
-                          variant="outline"
-                          onClick={() => setShowAddQuestionForStory(story.id)}
+                          onClick={() => {
+                            setSelectedStory(story);
+                            setEditingStoryId(story.id);
+                          }}
                         >
-                          {t("storyAddQuestion")}
+                          {t("editStory")}
                         </Button>
-                      </>
-                    ) : null}
+                      ) : null}
 
-                    {story.questions.length > 0 ? (
                       <Button
-                        className="bg-orange-600 hover:bg-orange-600/90"
-                        disabled={loadingStoryId === story.id}
-                        onClick={() => handleRegenerateQuestions(story.id)}
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedStory(story);
+                          setShowAiEditor(true);
+                        }}
                       >
-                        {loadingStoryId === story.id
-                          ? t("storyRegeneratingQuestions")
-                          : t("storyRegenerateQuestions")}
+                        {t("editUsingAI")}
                       </Button>
-                    ) : null}
+
+                      {!story.isApproved && story.status !== "PUBLISHED" ? (
+                        <Button
+                          className="bg-green-600 hover:bg-green-600/90"
+                          onClick={() => handleApprove(story.id)}
+                        >
+                          {t("approveStory")}
+                        </Button>
+                      ) : null}
+
+                      {story.isApproved &&
+                      story.status !== "PUBLISHED" &&
+                      story.questions.length === 0 ? (
+                        <Button
+                          onClick={() => handleGenerateQuestions(story.id)}
+                          disabled={questionLoading}
+                        >
+                          {questionLoading
+                            ? t("storyGeneratingQuestions")
+                            : t("storyGenerateQuestions")}
+                        </Button>
+                      ) : null}
+
+                      {story.isApproved &&
+                      story.status !== "PUBLISHED" &&
+                      story.questions.length > 0 ? (
+                        <>
+                          <Button onClick={() => handleApproveQuestions(story.id)}>
+                            {t("storyApproveQuestions")}
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowAddQuestionForStory(story.id)}
+                          >
+                            {t("storyAddQuestion")}
+                          </Button>
+                        </>
+                      ) : null}
+
+                      {story.questions.length > 0 ? (
+                        <Button
+                          className="bg-orange-600 hover:bg-orange-600/90"
+                          disabled={loadingStoryId === story.id}
+                          onClick={() => handleRegenerateQuestions(story.id)}
+                        >
+                          {loadingStoryId === story.id
+                            ? t("storyRegeneratingQuestions")
+                            : t("storyRegenerateQuestions")}
+                        </Button>
+                      ) : null}
+                    </>
+                    )}
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

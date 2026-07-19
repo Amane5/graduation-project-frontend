@@ -834,12 +834,6 @@ const CreateChallenge = () => {
                                   child.firstName
                                 }
                               </p>
-
-                              <p className="text-sm text-muted-foreground">
-                                {
-                                  child.lastName
-                                }
-                              </p>
                             </div>
 
                             <input
