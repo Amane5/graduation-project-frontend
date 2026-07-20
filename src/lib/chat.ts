@@ -80,6 +80,7 @@ export async function streamChat({
   conversationId,
   files,
   onDelta,
+  onJourneyDelta,
   onDone,
   onAbort,
   onError,
@@ -93,6 +94,10 @@ export async function streamChat({
   files?: File[];
   mode?: "normal" | "journey";
   onDelta: (chunk: string) => void;
+  onJourneyDelta?: (data: {
+  section: string;
+  chunk: string;
+}) => void;
   onDone: (data?: {
     audioUrl?: string;
     imageUrl?: string;
@@ -180,7 +185,19 @@ export async function streamChat({
             } catch {
               onDelta(raw);
             }
-          } else if (currentEvent === "audio") {
+          } else if (currentEvent === "journey_delta") {
+          try {
+            const data = JSON.parse(raw);
+
+            onJourneyDelta?.({
+              section: data.section,
+              chunk: data.chunk,
+            });
+          } catch (error) {
+            console.error("Failed to parse journey_delta", error);
+          }
+        }
+          else if (currentEvent === "audio") {
             const data = JSON.parse(raw);
             onAudio?.(data.audioUrl);
           } else if (currentEvent === "image") {
@@ -210,4 +227,28 @@ export const histoyPage = async (childId: number) => {
   const response = await fetchWithSession(`${import.meta.env.VITE_API_URL}/history/${childId}`);
   const data = await response.json();
   return data.data;
+};
+
+
+export const speechToTextChat = async (audioFile: File) => {
+  const url = `${import.meta.env.VITE_API_URL}/ai/speech-to-text`;
+
+  const formData = new FormData();
+
+  formData.append("audio", audioFile);
+
+  const response = await fetchWithSession(url, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+
+    throw new Error(
+      errorData?.message || "Failed to transcribe audio",
+    );
+  }
+
+  return response.json();
 };

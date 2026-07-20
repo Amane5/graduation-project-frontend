@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { fetchWithSession } from "@/lib/auth-session";
 
 interface ChatInputProps {
   onSend: (text: string, files: File[]) => void;
@@ -44,10 +45,184 @@ const ChatInput = ({
   const [files, setFiles] = useState<File[]>([]);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const audioInputRef = useRef<HTMLInputElement>(null);
+  // const audioInputRef = useRef<HTMLInputElement>(null);
 
   const isDrawingUploadStep = mode === "drawing" && !drawingStarted;
   const isDrawingMessageStep = mode === "drawing" && drawingStarted;
+
+
+  const mediaRecorderRef =
+  useRef<MediaRecorder | null>(null);
+
+  const audioStreamRef =
+    useRef<MediaStream | null>(null);
+
+  const audioChunksRef =
+    useRef<Blob[]>([]);
+
+  const [isRecording, setIsRecording] =
+    useState(false);
+
+  const [isTranscribing, setIsTranscribing] =
+    useState(false);
+
+
+const transcribeAudio = async (audioFile: File) => {
+  try {
+    setIsTranscribing(true);
+
+    const formData = new FormData();
+
+    formData.append("audio", audioFile);
+
+    const baseUrl =
+      import.meta.env.VITE_API_URL ||
+      "http://localhost:3000";
+
+    const response = await fetchWithSession(
+      `${baseUrl}/ai/speech-to-text`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "Failed to transcribe audio",
+      );
+    }
+
+    const data = await response.json();
+
+    const transcribedText = data?.data?.text;
+
+    if (
+      typeof transcribedText !== "string" ||
+      !transcribedText.trim()
+    ) {
+      toast.error(
+        "No text was detected in the recording",
+      );
+      return;
+    }
+
+    setText((prev) => {
+      if (!prev.trim()) {
+        return transcribedText;
+      }
+
+      return `${prev.trim()} ${transcribedText}`;
+    });
+  } catch (error) {
+    console.error(
+      "Transcription error:",
+      error,
+    );
+
+    toast.error(
+      "Could not convert voice to text",
+    );
+  } finally {
+    setIsTranscribing(false);
+  }
+}
+
+
+const startRecording = async () => {
+  try {
+    const stream =
+      await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+
+    audioStreamRef.current = stream;
+
+    const recorder =
+      new MediaRecorder(stream);
+
+    mediaRecorderRef.current =
+      recorder;
+
+    audioChunksRef.current = [];
+
+    recorder.ondataavailable = (
+      event,
+    ) => {
+      if (event.data.size > 0) {
+        audioChunksRef.current.push(
+          event.data,
+        );
+      }
+    };
+
+    recorder.onstop = async () => {
+      const blob = new Blob(
+        audioChunksRef.current,
+        {
+          type: recorder.mimeType,
+        },
+      );
+
+      const extension =
+        recorder.mimeType.includes('ogg')
+          ? 'ogg'
+          : 'webm';
+
+      const audioFile = new File(
+        [blob],
+        `voice-message.${extension}`,
+        {
+          type: recorder.mimeType,
+        },
+      );
+
+      audioStreamRef.current
+        ?.getTracks()
+        .forEach((track) => {
+          track.stop();
+        });
+
+      audioStreamRef.current = null;
+
+      mediaRecorderRef.current = null;
+
+      audioChunksRef.current = [];
+
+      setIsRecording(false);
+
+      await transcribeAudio(
+        audioFile,
+      );
+    };
+
+    recorder.start();
+
+    setIsRecording(true);
+  } catch (error) {
+    console.error(
+      'Failed to start recording:',
+      error,
+    );
+
+    toast.error(
+      'Could not access microphone',
+    );
+  }
+};
+
+const stopRecording = () => {
+  const recorder =
+    mediaRecorderRef.current;
+
+  if (
+    recorder &&
+    recorder.state !== 'inactive'
+  ) {
+    recorder.stop();
+  }
+};
+
 
   const modeOptions = [
     {
@@ -101,7 +276,7 @@ const ChatInput = ({
       return;
     }
 
-    const nextText = text.trim();
+    const nextText = (text ?? "").trim();
 
     if ((!nextText && files.length === 0) || disabled) return;
 
@@ -116,13 +291,14 @@ const ChatInput = ({
       handleSend();
     }
   };
+const safeText = text ?? "";
 
   const sendDisabled =
     (tokenBalance ?? 0) <= 0 ||
     disabled ||
     (isDrawingUploadStep && files.length === 0) ||
-    (isDrawingMessageStep && !text.trim()) ||
-    (mode !== "drawing" && !text.trim() && files.length === 0);
+    (isDrawingMessageStep && !safeText.trim()) ||
+    (mode !== "drawing" && !safeText.trim() && files.length === 0);
 
   return (
     <div className="sticky bottom-0 bg-gradient-to-t from-background via-background to-background/80 px-3 pb-4 pt-3 sm:px-6">
@@ -212,7 +388,7 @@ const ChatInput = ({
             }}
           />
 
-          <input
+          {/* <input
             ref={audioInputRef}
             type="file"
             accept="audio/*"
@@ -221,7 +397,7 @@ const ChatInput = ({
               const selected = Array.from(event.target.files || []);
               setFiles((prev) => [...prev, ...selected]);
             }}
-          />
+          /> */}
 
           <button
             type="button"
@@ -245,7 +421,7 @@ const ChatInput = ({
             className="max-h-40 flex-1 resize-none border-0 bg-transparent py-2.5 text-base leading-relaxed outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
           />
 
-          <button
+          {/* <button
             type="button"
             onClick={() => audioInputRef.current?.click()}
             disabled={isDrawingUploadStep}
@@ -253,6 +429,33 @@ const ChatInput = ({
             aria-label={t("chatUploadAudio")}
           >
             <Mic className="h-5 w-5" />
+          </button> */}
+          <button
+            type="button"
+            onClick={
+              isRecording
+                ? stopRecording
+                : startRecording
+            }
+            disabled={
+              isDrawingUploadStep ||
+              disabled ||
+              isStreaming ||
+              isTranscribing
+            }
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all",
+              isRecording
+                ? "bg-red-500 text-white hover:bg-red-600"
+                : "text-muted-foreground hover:scale-110 hover:bg-primary/10 hover:text-primary",
+              "disabled:opacity-40",
+            )}
+          >
+            {isRecording ? (
+              <Square className="h-5 w-5 fill-current" />
+            ) : (
+              <Mic className="h-5 w-5" />
+            )}
           </button>
 
           {isStreaming ? (

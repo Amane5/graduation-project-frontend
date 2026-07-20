@@ -613,7 +613,7 @@ const Chat = () => {
     const assistantTmpId = `asst_${Date.now()}`;
     setMessages((prev) => [
       ...prev,
-      { id: assistantTmpId, role: "assistant", content: "", streaming: true },
+      { id: assistantTmpId, role: "assistant", content: "", streaming: true, responseMode: mode, },
     ]);
 
     setStreaming(true);
@@ -639,7 +639,8 @@ const Chat = () => {
     });
 
     let accumulated = "";
-
+let journeyAccumulated = "";
+let currentJourneySection = "";
     await streamChat({
       question: text,
       conversationId,
@@ -652,6 +653,28 @@ const Chat = () => {
         setMessages((prev) =>
           prev.map((message) =>
             message.id === assistantTmpId ? { ...message, content: accumulated } : message,
+          ),
+        );
+      },
+      onJourneyDelta: ({ section, chunk }) => {
+        if (abortRef.current.aborted) return;
+
+        if (currentJourneySection !== section) {
+          currentJourneySection = section;
+
+          journeyAccumulated += `[[${section.toUpperCase()}]]`;
+        }
+
+        journeyAccumulated += chunk;
+
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === assistantTmpId
+              ? {
+                  ...message,
+                  content: journeyAccumulated,
+                }
+              : message,
           ),
         );
       },

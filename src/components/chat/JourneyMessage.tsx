@@ -80,22 +80,24 @@ export default function JourneyMessage({
             className="w-full mt-4"
         />
         )}
+      {title && (
       <div className="bg-card rounded-2xl p-5 border">
         <h2 className="text-xl font-bold">
           🚀 {title}
         </h2>
       </div>
-
-
+      )}
         
-      <div className="bg-card rounded-2xl p-5 border">
+      {intro && (
+        <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
           📖 Introduction
         </h3>
-
         <p>{intro}</p>
       </div>
-
+      )}
+      
+      {story && (
       <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
           📚 Story
@@ -103,7 +105,9 @@ export default function JourneyMessage({
 
         <p>{story}</p>
       </div>
-
+      )}
+      
+      {explanation && (
       <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
           🧠 Explanation
@@ -111,7 +115,9 @@ export default function JourneyMessage({
 
         <p>{explanation}</p>
       </div>
-
+      )}
+      
+      {facts && (
       <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
           🌟 Facts
@@ -121,15 +127,18 @@ export default function JourneyMessage({
           {facts}
         </div>
       </div>
+      )}
 
+      {challenge && (
       <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
           🎯 Challenge
         </h3>
-
         <p>{challenge}</p>
       </div>
-
+      )}
+      
+      {questions && (
       <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
           ❓ Questions
@@ -139,7 +148,8 @@ export default function JourneyMessage({
           {questions}
         </div>
       </div>
-
+      )}
+      
     {imageUrl && (
     <img
         src={`${import.meta.env.VITE_API_URL}${imageUrl}`}
