@@ -33,6 +33,7 @@ import {
   getDrawingStorySession,
   sendDrawingStoryMessage,
   startDrawingStory,
+  type DrawingStorySession,
 } from "@/lib/drawingStory";
 import { getTokenStats } from "@/lib/profile";
 
@@ -269,26 +270,87 @@ const Chat = () => {
     [t],
   );
 
+  const createDrawingSessionAttachments = useCallback(
+    (drawingSession: DrawingStorySession | null): ChatAttachment[] => {
+      if (!drawingSession?.drawingImageUrl) {
+        return [];
+      }
+
+      return [
+        {
+          kind: "image",
+          name: t("chatAttachmentImage"),
+          url: drawingSession.drawingImageUrl,
+        },
+      ];
+    },
+    [t],
+  );
+
   const mapMessagesFromHistory = useCallback(
-    (loadedMessages: AskMessage[]): UiMessage[] =>
-      loadedMessages.flatMap((message) => [
+    (
+      loadedMessages: AskMessage[],
+      drawingSession: DrawingStorySession | null,
+    ): UiMessage[] => {
+      const mappedMessages = loadedMessages.flatMap((message) => {
+        const attachments = createPersistedAttachments(message);
+        const shouldRenderUserMessage =
+          message.question.trim().length > 0 || attachments.length > 0;
+
+        return [
+          ...(shouldRenderUserMessage
+            ? [
+                {
+                  id: `q_${message.id}`,
+                  role: "user" as const,
+                  content: message.question,
+                  attachments,
+                } satisfies UiMessage,
+              ]
+            : []),
+          {
+            id: `a_${message.id}`,
+            role: "assistant" as const,
+            content: message.answer,
+            audioUrl: message.audioUrl,
+            imageUrl: message.imageUrl,
+            responseMode: message.responseMode,
+            journeyData: message.journeyData,
+          } satisfies UiMessage,
+        ];
+      });
+
+      const drawingAttachments = createDrawingSessionAttachments(drawingSession);
+
+      if (drawingAttachments.length === 0) {
+        return mappedMessages;
+      }
+
+      const hasDrawingUploadMessage = mappedMessages.some(
+        (message) =>
+          message.role === "user" &&
+          message.attachments?.some(
+            (attachment) =>
+              attachment.kind === "image" &&
+              attachment.url === drawingSession?.drawingImageUrl,
+          ),
+      );
+
+      if (hasDrawingUploadMessage) {
+        return mappedMessages;
+      }
+
+      return [
         {
-          id: `q_${message.id}`,
-          role: "user" as const,
-          content: message.question,
-          attachments: createPersistedAttachments(message),
+          id: `drawing_upload_${drawingSession?.conversationId ?? "unknown"}`,
+          role: "user",
+          content: "",
+          attachments: drawingAttachments,
         },
-        {
-          id: `a_${message.id}`,
-          role: "assistant" as const,
-          content: message.answer,
-          audioUrl: message.audioUrl,
-          imageUrl: message.imageUrl,
-          responseMode: message.responseMode,
-          journeyData: message.journeyData,
-        },
-      ]),
-    [createPersistedAttachments],
+        ...mappedMessages,
+      ];
+    },
+    [createDrawingSessionAttachments, createPersistedAttachments],
   );
 
   const loadConversationState = useCallback(
@@ -336,7 +398,7 @@ const Chat = () => {
           );
         }
 
-        setMessages(mapMessagesFromHistory(loadedMessages));
+        setMessages(mapMessagesFromHistory(loadedMessages, drawingSession));
 
         if (drawingSession) {
           setMode("drawing");
@@ -512,16 +574,23 @@ const Chat = () => {
 
   const handleSend = async (text: string, files: File[] = []) => {
     if (mode === "drawing" && drawingStarted) {
-      const userMessage: UiMessage = {
-        id: Date.now(),
+      const optimisticUser: UiMessage = {
+        id: `tmp_${Date.now()}`,
         role: "user",
         content: text,
+        attachments: createAttachmentsFromFiles(files),
       };
+      const assistantTmpId = `drawing_asst_${Date.now()}`;
 
-      setMessages((prev) => [...prev, userMessage]);
+      setMessages((prev) => [
+        ...prev,
+        optimisticUser,
+        { id: assistantTmpId, role: "assistant", content: "", streaming: true },
+      ]);
 
       try {
         setStreaming(true);
+        pendingConversationRef.current = drawingConversationId;
         setChatFeedback({
           tone: "loading",
           title: { key: "chatFeedbackContinueDrawingTitle" },
@@ -532,29 +601,40 @@ const Chat = () => {
         const response = await sendDrawingStoryMessage({
           conversationId: drawingConversationId,
           message: text,
+          files,
         });
         setStreaming(false);
 
         if (response.data.finished) {
           setDrawingFinished(true);
+          setMessages((prev) => prev.filter((message) => message.id !== assistantTmpId));
           setChatFeedback({
             tone: "success",
             title: { key: "chatFeedbackDrawingReadyTitle" },
             message: { key: "chatFeedbackDrawingReadyMessage" },
           });
         } else {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now() + 1,
-              role: "assistant",
-              content: response.data.reply,
-            },
-          ]);
+          setMessages((prev) =>
+            prev.map((message) =>
+              message.id === assistantTmpId
+                ? {
+                    ...message,
+                    content: response.data.reply,
+                    streaming: false,
+                  }
+                : message,
+            ),
+          );
           setChatFeedback(null);
+        }
+
+        if (drawingConversationId) {
+          scheduleConversationSync(drawingConversationId);
         }
       } catch (error) {
         console.error(error);
+        pendingConversationRef.current = null;
+        setMessages((prev) => prev.filter((message) => message.id !== assistantTmpId));
         toast.error(t("chatSendFailed"));
         lastAttemptRef.current = { text, files };
         setChatFeedback({
@@ -639,8 +719,8 @@ const Chat = () => {
     });
 
     let accumulated = "";
-let journeyAccumulated = "";
-let currentJourneySection = "";
+    let journeyAccumulated = "";
+    let currentJourneySection = "";
     await streamChat({
       question: text,
       conversationId,
@@ -739,6 +819,14 @@ let currentJourneySection = "";
   };
 
   const handleStartDrawing = async (file: File) => {
+    const optimisticUser: UiMessage = {
+      id: `drawing_upload_${Date.now()}`,
+      role: "user",
+      content: "",
+      attachments: createAttachmentsFromFiles([file]),
+    };
+    const assistantTmpId = `drawing_start_${Date.now()}`;
+
     try {
       setDrawingLoading(true);
       setChatFeedback({
@@ -746,9 +834,16 @@ let currentJourneySection = "";
         title: { key: "chatFeedbackAnalyzingDrawingTitle" },
         message: { key: "chatFeedbackAnalyzingDrawingMessage" },
       });
+      setStreaming(true);
+
+      setMessages([
+        optimisticUser,
+        { id: assistantTmpId, role: "assistant", content: "", streaming: true },
+      ]);
 
       const response = await startDrawingStory(file);
       setDrawingConversationId(response.data.conversationId);
+      pendingConversationRef.current = response.data.conversationId;
       setActiveId(response.data.conversationId);
       setMode("drawing");
       setDrawingStarted(true);
@@ -765,13 +860,18 @@ let currentJourneySection = "";
         ),
       ]);
 
-      setMessages([
-        {
-          id: Date.now(),
-          role: "assistant",
-          content: response.data.reply,
-        },
-      ]);
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === assistantTmpId
+            ? {
+                ...message,
+                content: response.data.reply,
+                streaming: false,
+              }
+            : message,
+        ),
+      );
+      scheduleConversationSync(response.data.conversationId);
       setChatFeedback({
         tone: "success",
         title: { key: "chatFeedbackDrawingLoadedTitle" },
@@ -779,6 +879,8 @@ let currentJourneySection = "";
       });
     } catch (error) {
       console.error(error);
+      pendingConversationRef.current = null;
+      setMessages((prev) => prev.filter((message) => message.id !== assistantTmpId));
       toast.error(t("chatAnalyzeDrawingFailed"));
       setChatFeedback({
         tone: "error",
@@ -786,6 +888,7 @@ let currentJourneySection = "";
         message: { key: "chatFeedbackAnalyzeDrawingFailedMessage" },
       });
     } finally {
+      setStreaming(false);
       setDrawingLoading(false);
     }
   };
@@ -1032,4 +1135,3 @@ let currentJourneySection = "";
 };
 
 export default Chat;
-

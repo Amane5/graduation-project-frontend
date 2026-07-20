@@ -2,6 +2,12 @@ import { fetchWithSession } from "./auth-session";
 
 type DrawingStoryPayload = Record<string, unknown>;
 
+interface SendDrawingStoryMessagePayload {
+    conversationId: number | null;
+    message: string;
+    files?: File[];
+}
+
 export interface DrawingStorySession {
     id: number;
     status: "INTERVIEWING" | "READY" | "GENERATING" | "COMPLETED";
@@ -26,15 +32,24 @@ export const startDrawingStory = async(file:File) => {
     return  res.json()
 }
 
-export const sendDrawingStoryMessage = async (data: DrawingStoryPayload) => {
+export const sendDrawingStoryMessage = async ({
+    conversationId,
+    message,
+    files = [],
+}: SendDrawingStoryMessagePayload) => {
     const url = `${import.meta.env.VITE_API_URL}/ai/drawing-story/message`;
+
+    const formData = new FormData();
+    formData.append("conversationId", String(conversationId ?? ""));
+    formData.append("message", message);
+
+    for (const file of files) {
+        formData.append("files", file);
+    }
 
     const res = await fetchWithSession(url, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
+        body: formData,
     });
 
 

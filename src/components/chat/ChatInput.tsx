@@ -297,7 +297,7 @@ const safeText = text ?? "";
     (tokenBalance ?? 0) <= 0 ||
     disabled ||
     (isDrawingUploadStep && files.length === 0) ||
-    (isDrawingMessageStep && !safeText.trim()) ||
+    (isDrawingMessageStep && !safeText.trim() && files.length === 0) ||
     (mode !== "drawing" && !safeText.trim() && files.length === 0);
 
   return (
