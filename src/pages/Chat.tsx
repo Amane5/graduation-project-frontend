@@ -143,6 +143,10 @@ const Chat = () => {
   const historyRequestRef = useRef(0);
   const { user } = useAuth();
   const navigate = useNavigate();
+  useEffect(() => {
+  console.log("[chat] current auth user:", user);
+  console.log("[chat] current avatarUrl:", user?.avatarUrl);
+}, [user]);
 
   const resetDrawingState = useCallback(
     (nextMode: "normal" | "journey" | "drawing" = "normal") => {
@@ -1084,6 +1088,8 @@ const Chat = () => {
                         audioUrl={message.audioUrl}
                         attachments={message.attachments}
                         isStreaming={message.streaming}
+                        userAvatarUrl={user?.avatarUrl}
+                        userAvatarFallback={user?.firstName || user?.username}
                       />
                     );
                   })}

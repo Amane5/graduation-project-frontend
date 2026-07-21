@@ -20,6 +20,9 @@ interface MessageBubbleProps {
   audioUrl?: string;
   attachments?: ChatAttachment[];
   isStreaming?: boolean;
+
+  userAvatarUrl?: string | null;
+  userAvatarFallback?: string;
 }
 
 const resolveAssetUrl = (url?: string) => {
@@ -131,7 +134,10 @@ const MessageBubble = ({
   audioUrl,
   attachments = [],
   isStreaming,
+  userAvatarUrl,
+  userAvatarFallback,
 }: MessageBubbleProps) => {
+  const resolvedUserAvatarUrl = resolveAssetUrl(userAvatarUrl);
   const { t } = useTranslation();
   const isUser = role === "user";
   const assistantImageUrl = resolveAssetUrl(imageUrl);
@@ -189,13 +195,33 @@ const MessageBubble = ({
         isUser ? "flex-row-reverse" : "flex-row",
       )}
     >
-      <div
+      {/* <div
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-soft",
           isUser ? "bg-secondary" : "bg-gradient-primary",
         )}
       >
         {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4 text-white" />}
+      </div> */}
+      <div
+        className={cn(
+          "flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full shadow-soft",
+          isUser ? "bg-secondary" : "bg-gradient-primary",
+        )}
+      >
+        {isUser ? (
+          resolvedUserAvatarUrl ? (
+            <img
+              src={resolvedUserAvatarUrl}
+              alt={userAvatarFallback || "User avatar"}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <User className="h-4 w-4" />
+          )
+        ) : (
+          <Bot className="h-4 w-4 text-white" />
+        )}
       </div>
 
       <div

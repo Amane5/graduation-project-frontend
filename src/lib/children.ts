@@ -86,6 +86,7 @@ export interface Child {
 
   avatarColor: string;
   avatarEmoji: string;
+  avatarUrl?: string | null;
 
   password?: string;
   firstName?: string;
@@ -189,4 +190,18 @@ export const deleteChildById = (id: string) => {
 // GET BY ID
 export const getChildById = (id: string) => {
   return http.get<ApiResponse<Child>>(`/children/${id}`);
+};
+
+export const cartoonizeChildImage = (
+  childId: string,
+  image: File,
+) => {
+  const formData = new FormData();
+
+  formData.append("image", image);
+
+  return http.postFormData<ApiResponse<Child>>(
+    `/children/${childId}/cartoonize`,
+    formData,
+  );
 };

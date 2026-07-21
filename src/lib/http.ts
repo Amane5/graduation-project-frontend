@@ -101,6 +101,16 @@ const http = {
       body: body ? JSON.stringify(body) : undefined,
     }),
 
+  postFormData: async <TResponse>(
+  url: string,
+  body: FormData,
+): Promise<TResponse> =>
+  request<TResponse>(url, {
+    method: "POST",
+    headers: buildAuthHeaders(),
+    body,
+  }),
+
   get: async <TResponse>(url: string): Promise<TResponse> =>
     request<TResponse>(url, {
       method: "GET",

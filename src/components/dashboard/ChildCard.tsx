@@ -2,7 +2,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Child, calcAge } from "@/lib/children";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
-
+import { resolveAssetUrl } from "@/lib/utils";
 interface Props {
   child: Child;
   onEdit: () => void;
@@ -25,11 +25,20 @@ const ChildCard = ({ child, onEdit, onDelete, onReports, delay = 0 }: Props) => 
       <div className="flex flex-col items-center text-center">
         <div
           className={cn(
-            "mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br text-4xl shadow-button transition-transform group-hover:scale-105",
+            "mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br text-4xl shadow-button transition-transform group-hover:scale-105",
             child.avatarColor,
           )}
         >
-          {child.avatarEmoji}
+          {child.avatarUrl ? (
+            <img
+              src={resolveAssetUrl(child.avatarUrl)}
+              alt={child.firstName || child.username}
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <span>{child.avatarEmoji}</span>
+          )}
         </div>
         <h3 className="text-lg font-bold text-foreground">
           {child.firstName} {child.lastName}

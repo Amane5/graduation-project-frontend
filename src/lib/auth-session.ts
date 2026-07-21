@@ -26,6 +26,7 @@ export interface AuthUser {
   learningStyle?: string;
   interests?: string[];
   blockedTopics?: string[];
+  avatarUrl?: string | null;
 }
 
 export interface AuthSession {
@@ -133,7 +134,14 @@ const normalizeAuthUser = (
     blockedTopics: isStringArray(record.blockedTopics)
       ? record.blockedTopics
       : undefined,
-  };
+
+    avatarUrl:
+    typeof record.avatarUrl === "string"
+      ? record.avatarUrl
+      : record.avatarUrl === null
+        ? null
+        : undefined,
+    };
 };
 
 const normalizeAuthSession = (value: unknown): AuthSession | null => {

@@ -7,7 +7,7 @@ import { AsyncFeedback } from "@/components/ui/async-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createChild, getChildById, updateChild } from "@/lib/children";
+import { cartoonizeChildImage, createChild, getChildById, updateChild } from "@/lib/children";
 import {
   Dialog,
   DialogContent,
@@ -93,6 +93,11 @@ const AddChild = () => {
   const [interestsDraft, setInterestsDraft] = useState("");
   const [blockedTopicsDraft, setBlockedTopicsDraft] = useState("");
 
+
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [childData, setChildData] = useState<Child | null>(editingChild ?? null);
   const validate = (): Errors => {
     const e: Errors = {};
 
@@ -131,6 +136,7 @@ const AddChild = () => {
 
     return e;
   };
+
 
   const liveErrors = validate();
   const isValid = Object.keys(liveErrors).length === 0;
@@ -173,6 +179,22 @@ const AddChild = () => {
           blockedTopics,
         };
         await updateChild(payload);
+let newAvatarUrl = user?.avatarUrl ?? null;
+
+        if (avatarFile) {
+          setAvatarLoading(true);
+          try{
+            const avatarResponse = await cartoonizeChildImage(
+            editingChild.id,
+            avatarFile,
+          );
+           console.log("CARTOONIZE AVATAR RESPONSE:", avatarResponse);
+            newAvatarUrl = avatarResponse.data.data.avatarUrl;
+          }finally{
+            setAvatarLoading(false);
+          }             
+        }
+
         if (user?.id === editingChild.id) {
             updateSessionUser({
               ...user,
@@ -182,6 +204,8 @@ const AddChild = () => {
               learningStyle,
               interests,
               blockedTopics,
+              avatarUrl: newAvatarUrl,
+
             });
         }
         toast.success(t("updated"));
@@ -192,7 +216,7 @@ const AddChild = () => {
         });
         navigate("/dashboard");
       } else {
-        await createChild({
+        const response = await createChild({
           firstName,
           gender,
           username,
@@ -205,6 +229,20 @@ const AddChild = () => {
           interests,
           blockedTopics,
         });
+
+        console.log("CREATE CHILD RESPONSE:", response);
+console.log("CREATED CHILD DATA:", response.data);
+console.log("CREATED CHILD ID:", response.data?.id);
+        if (avatarFile) {
+        setAvatarLoading(true);
+
+        await cartoonizeChildImage(
+          response.data.data.id,
+          avatarFile,
+        );
+
+        setAvatarLoading(false);
+      }
 
         toast.success(t("childCreatedSuccess"));
         setFeedback({
@@ -241,50 +279,146 @@ const AddChild = () => {
     navigate("/dashboard");
   };
 
-  useEffect(() => {
-    if (!editingChild) return;
+  const handleAvatarChange = (
+  e: React.ChangeEvent<HTMLInputElement>,
+) => {
+  const file = e.target.files?.[0];
 
-    setFirstName(editingChild.firstName || "");
-    setGender(editingChild.gender || "");
+  if (!file) return;
 
-    setUsername(editingChild.username || "");
-    setBirthDate(editingChild.birthDate.split("T")[0]);
-    setPassword("");
-    setRepeatPassword("");
+  if (!file.type.startsWith("image/")) {
+    toast.error("Please select an image");
+    return;
+  }
 
-    setReadingLevel(editingChild.readingLevel || "");
-    setResponseLength(editingChild.responseLength || "");
-    setLearningStyle(editingChild.learningStyle || "");
-    setInterests(editingChild.interests || []);
-    setBlockedTopics(editingChild.blockedTopics || []);
-    setInterestsDraft("");
-    setBlockedTopicsDraft("");
-  }, [editingChild]);
-  useEffect(() => {
-    if (editId && !editingChild) {
-      setPageLoading(true);
-      getChildById(editId)
-        .then((res) => {
-          const child = res.data;
-          setFirstName(child.firstName || "");
-          setGender(child.gender || "");
-          // setBirthDate(
-          //   editingChild.birthDate.split("T")[0]
-          // );
-          setBirthDate(child.birthDate.split("T")[0]);
-          setUsername(child.username || "");
-          setReadingLevel(child.readingLevel || "");
-          setResponseLength(child.responseLength || "");
-          setLearningStyle(child.learningStyle || "");
-          setInterests(child.interests || []);
-          setBlockedTopics(child.blockedTopics || []);
-          setInterestsDraft("");
-          setBlockedTopicsDraft("");
-        })
-        .catch(() => navigate("/dashboard"))
-        .finally(() => setPageLoading(false));
+  if (file.size > 10 * 1024 * 1024) {
+    toast.error("Image must be smaller than 10MB");
+    return;
+  }
+
+  setAvatarFile(file);
+
+  const previewUrl = URL.createObjectURL(file);
+  setAvatarPreview(previewUrl);
+};
+
+  // useEffect(() => {
+  //   if (!editingChild) return;
+
+  //   setFirstName(editingChild.firstName || "");
+  //   setGender(editingChild.gender || "");
+
+  //   setUsername(editingChild.username || "");
+  //   setBirthDate(editingChild.birthDate.split("T")[0]);
+  //   setPassword("");
+  //   setRepeatPassword("");
+
+  //   setAvatarFile(null);
+  // setAvatarPreview(null);
+
+  //   setReadingLevel(editingChild.readingLevel || "");
+  //   setResponseLength(editingChild.responseLength || "");
+  //   setLearningStyle(editingChild.learningStyle || "");
+  //   setInterests(editingChild.interests || []);
+  //   setBlockedTopics(editingChild.blockedTopics || []);
+  //   setInterestsDraft("");
+  //   setBlockedTopicsDraft("");
+  // }, [editingChild]);
+
+  // useEffect(() => {
+  //   if (editId && !editingChild) {
+  //     setPageLoading(true);
+  //     getChildById(editId)
+  //       .then((res) => {
+  //         const child = res.data;
+  //         setChildData(child);
+  //         setFirstName(child.firstName || "");
+  //         setGender(child.gender || "");
+  //         // setBirthDate(
+  //         //   editingChild.birthDate.split("T")[0]
+  //         // );
+  //         setBirthDate(child.birthDate.split("T")[0]);
+  //         setUsername(child.username || "");
+
+  //         setAvatarFile(null);
+  //         setAvatarPreview(null);
+
+  //         setReadingLevel(child.readingLevel || "");
+  //         setResponseLength(child.responseLength || "");
+  //         setLearningStyle(child.learningStyle || "");
+  //         setInterests(child.interests || []);
+  //         setBlockedTopics(child.blockedTopics || []);
+  //         setInterestsDraft("");
+  //         setBlockedTopicsDraft("");
+  //       })
+  //       .catch(() => navigate("/dashboard"))
+  //       .finally(() => setPageLoading(false));
+  //   }
+  // }, [editId, editingChild, navigate]);
+useEffect(() => {
+  const loadChild = async () => {
+    // إذا البيانات موجودة أصلاً من location.state
+    if (editingChild) {
+      setChildData(editingChild);
+
+      setFirstName(editingChild.firstName || "");
+      setGender(editingChild.gender || "");
+      setUsername(editingChild.username || "");
+      setBirthDate(editingChild.birthDate?.split("T")[0] || "");
+
+      setReadingLevel(editingChild.readingLevel || "");
+      setResponseLength(editingChild.responseLength || "");
+      setLearningStyle(editingChild.learningStyle || "");
+
+      setInterests(editingChild.interests || []);
+      setBlockedTopics(editingChild.blockedTopics || []);
+
+      setAvatarFile(null);
+      setAvatarPreview(null);
+
+      return;
     }
-  }, [editId, editingChild, navigate]);
+
+    // إذا دخلنا على /edit/:id بدون location.state
+    if (!editId) return;
+
+    try {
+      setPageLoading(true);
+
+      const res = await getChildById(editId);
+      console.log("GET CHILD RESPONSE:", res);
+console.log("GET CHILD DATA:", res.data);
+      const child = res.data;
+
+      console.log("CHILD DATA FROM API:", child);
+      console.log("CHILD AVATAR URL:", child.avatarUrl);
+
+      setChildData(child);
+
+      setFirstName(child.firstName || "");
+      setGender(child.gender || "");
+      setUsername(child.username || "");
+      setBirthDate(child.birthDate?.split("T")[0] || "");
+
+      setReadingLevel(child.readingLevel || "");
+      setResponseLength(child.responseLength || "");
+      setLearningStyle(child.learningStyle || "");
+
+      setInterests(child.interests || []);
+      setBlockedTopics(child.blockedTopics || []);
+
+      setAvatarFile(null);
+      setAvatarPreview(null);
+    } catch (error) {
+      navigate("/dashboard");
+    } finally {
+      setPageLoading(false);
+    }
+  };
+
+  loadChild();
+}, [editingChild, editId, navigate]);
+
   useEffect(() => {
     if (isEditMode) return;
 
@@ -359,6 +493,47 @@ const AddChild = () => {
               <p className="text-red-500 text-sm">{errors.firstName}</p>
             )}
           </div>
+
+          <div className="mt-6 space-y-3">
+  <Label htmlFor="avatar">
+    {t("childAvatar")}
+  </Label>
+
+  <div className="flex items-center gap-4">
+    <div className="h-24 w-24 overflow-hidden rounded-full border border-border bg-muted">
+      {avatarPreview ? (
+        <img
+          src={avatarPreview}
+          alt="Avatar preview"
+          className="h-full w-full object-cover"
+        />
+      ) : childData?.avatarUrl ? (
+        <img
+          src={childData.avatarUrl}
+          alt="Child avatar"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-3xl">
+          {childData?.avatarEmoji || "🧒"}
+        </div>
+      )}
+    </div>
+
+    <div>
+      <Input
+        id="avatar"
+        type="file"
+        accept="image/*"
+        onChange={handleAvatarChange}
+      />
+
+      <p className="mt-2 text-xs text-muted-foreground">
+        {t("childAvatarHint")}
+      </p>
+    </div>
+  </div>
+</div>
 
         </div>
 
