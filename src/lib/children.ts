@@ -79,6 +79,10 @@
 // };
 import http, { ApiResponse } from "./http";
 
+type WrappedDataResponse<T> = ApiResponse<{
+  data: T;
+}>;
+
 export interface Child {
   id: string;
   username: string;
@@ -139,13 +143,13 @@ export const calcAge = (birthDate?: string): number | null => {
 };
 
 // GET
-export const getChildren = async (): Promise<Child[]> => {
-  const res = await http.get<ApiResponse<Child[]>>("/children");
+export const getChildren = async (): Promise<{ data: Child[] }> => {
+  const res = await http.get<WrappedDataResponse<Child[]>>("/children");
   return res.data;
 };
 
 export const getDashboardStats = () =>
-  http.get<ApiResponse<DashboardStats>>("/children/dashboard-stats");
+  http.get<WrappedDataResponse<DashboardStats>>("/children/dashboard-stats");
 
 // CREATE
 export const createChild = (data: {
@@ -161,7 +165,7 @@ export const createChild = (data: {
   interests?: string[];
   blockedTopics?: string[];
 }) => {
-  return http.post<ApiResponse<Child>>("/children", data);
+  return http.post<WrappedDataResponse<Child>>("/children", data);
 };
 
 // UPDATE
@@ -179,7 +183,7 @@ export const updateChild = (data: {
   interests?: string[];
   blockedTopics?: string[];
 }) => {
-  return http.put<ApiResponse<Child>>(`/children/${data.id}`, data);
+  return http.put<WrappedDataResponse<Child>>(`/children/${data.id}`, data);
 };
 
 // DELETE
@@ -188,8 +192,10 @@ export const deleteChildById = (id: string) => {
 };
 
 // GET BY ID
-export const getChildById = (id: string) => {
-  return http.get<ApiResponse<Child>>(`/children/${id}`);
+export const getChildById = async (id: string): Promise<Child> => {
+  const response = await http.get<WrappedDataResponse<Child>>(`/children/${id}`);
+
+  return response.data.data;
 };
 
 export const cartoonizeChildImage = (
@@ -200,7 +206,7 @@ export const cartoonizeChildImage = (
 
   formData.append("image", image);
 
-  return http.postFormData<ApiResponse<Child>>(
+  return http.postFormData<WrappedDataResponse<{ id: string | number; avatarUrl?: string | null }>>(
     `/children/${childId}/cartoonize`,
     formData,
   );

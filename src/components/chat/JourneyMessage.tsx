@@ -24,6 +24,13 @@ function extractSection(
     .trim();
 }
 
+function isArabic(text: string) {
+  const arabicChars = text.match(/[\u0600-\u06FF]/g)?.length ?? 0;
+  const latinChars = text.match(/[A-Za-z]/g)?.length ?? 0;
+
+  return arabicChars > latinChars;
+}
+
 export default function JourneyMessage({
   content,audioUrl,
   imageUrl,
@@ -71,6 +78,28 @@ export default function JourneyMessage({
     "[[IMAGE_PROMPT]]"
   );
 
+  const arabic = isArabic(
+    `${title} ${intro} ${story} ${explanation} ${facts} ${challenge} ${questions}`
+  );
+
+  const labels = arabic
+    ? {
+        introduction: "مقدمة",
+        story: "القصة",
+        explanation: "الشرح",
+        facts: "حقائق",
+        challenge: "التحدي",
+        questions: "الأسئلة",
+      }
+    : {
+        introduction: "Introduction",
+        story: "Story",
+        explanation: "Explanation",
+        facts: "Facts",
+        challenge: "Challenge",
+        questions: "Questions",
+      };
+
   return (
     <div className="space-y-4">
         {audioUrl && (
@@ -91,7 +120,7 @@ export default function JourneyMessage({
       {intro && (
         <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
-          📖 Introduction
+          📖 {labels.introduction}
         </h3>
         <p>{intro}</p>
       </div>
@@ -100,7 +129,7 @@ export default function JourneyMessage({
       {story && (
       <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
-          📚 Story
+          📚 {labels.story}
         </h3>
 
         <p>{story}</p>
@@ -110,7 +139,7 @@ export default function JourneyMessage({
       {explanation && (
       <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
-          🧠 Explanation
+          🧠 {labels.explanation}
         </h3>
 
         <p>{explanation}</p>
@@ -120,7 +149,7 @@ export default function JourneyMessage({
       {facts && (
       <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
-          🌟 Facts
+          🌟 {labels.facts}
         </h3>
 
         <div className="whitespace-pre-wrap">
@@ -132,7 +161,7 @@ export default function JourneyMessage({
       {challenge && (
       <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
-          🎯 Challenge
+          🎯 {labels.challenge}
         </h3>
         <p>{challenge}</p>
       </div>
@@ -141,7 +170,7 @@ export default function JourneyMessage({
       {questions && (
       <div className="bg-card rounded-2xl p-5 border">
         <h3 className="font-bold mb-2">
-          ❓ Questions
+          ❓ {labels.questions}
         </h3>
 
         <div className="whitespace-pre-wrap">

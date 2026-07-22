@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Edit2, FileText, Trash2, Upload } from "lucide-react";
+import { Edit2, FileText, Loader2, Trash2, Upload } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -91,9 +91,27 @@ export default function MyFiles() {
   }, [user]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files?.[0]) {
-      setSelectedFile(event.target.files[0]);
+    // if (event.target.files?.[0]) {
+    //   setSelectedFile(event.target.files[0]);
+    // }
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (file.size === 0) {
+      setSelectedFile(null);
+      setFeedback({
+        tone: "error",
+        title: t("myFilesEmptyFileTitle"),
+        message: t("myFilesEmptyFileMessage"),
+      });
+
+      event.target.value = "";
+      return;
     }
+
+    setFeedback(null);
+    setSelectedFile(file);
   };
 
   const handleRemoveFile = () => {
@@ -250,7 +268,11 @@ export default function MyFiles() {
                 aria-label={t("delete")}
                 disabled={uploading}
               >
-                <Trash2 className="h-5 w-5" />
+                {uploading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-5 w-5" />
+                )}
               </button>
             </div>
           ) : null}

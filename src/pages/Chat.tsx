@@ -143,6 +143,14 @@ const Chat = () => {
   const historyRequestRef = useRef(0);
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const [conversationOwnerId, setConversationOwnerId] = useState<number | null>(null);
+
+  const isParentViewingChildConversation =
+  user?.type === "parent" &&
+  conversationOwnerId !== null &&
+  conversationOwnerId !== user.id;
+
   useEffect(() => {
   console.log("[chat] current auth user:", user);
   console.log("[chat] current avatarUrl:", user?.avatarUrl);
@@ -374,10 +382,16 @@ const Chat = () => {
       }
 
       try {
-        const [loadedMessages, drawingSession] = await Promise.all([
+        // const [loadedMessages, drawingSession] = await Promise.all([
+        //   listMessages(conversationId),
+        //   getDrawingStorySession(conversationId),
+        // ]);
+        const [messagesResponse, drawingSession] = await Promise.all([
           listMessages(conversationId),
           getDrawingStorySession(conversationId),
         ]);
+
+      const loadedMessages = messagesResponse.messages;
 
         if (
           requestId !== historyRequestRef.current ||
@@ -389,6 +403,9 @@ const Chat = () => {
         if (preserveOptimistic && pendingConversationRef.current === conversationId) {
           return;
         }
+
+        setConversationOwnerId(messagesResponse.conversation?.userId ?? null);
+
 
         if (CHAT_DEBUG) {
           console.debug(
@@ -554,6 +571,7 @@ const Chat = () => {
     pendingConversationRef.current = null;
     setActiveId(null);
     setMessages([]);
+    setConversationOwnerId(null);
     resetDrawingState();
   }, [resetDrawingState]);
 
@@ -566,6 +584,7 @@ const Chat = () => {
           pendingConversationRef.current = null;
           setActiveId(null);
           setMessages([]);
+          setConversationOwnerId(null);
           resetDrawingState();
         }
         toast.success(t("chatRemoved"));
@@ -577,6 +596,10 @@ const Chat = () => {
   );
 
   const handleSend = async (text: string, files: File[] = []) => {
+     if (isParentViewingChildConversation) {
+        toast.error(t("chatParentChildConversationReadOnly"));
+        return;
+      }
     if (mode === "drawing" && drawingStarted) {
       const optimisticUser: UiMessage = {
         id: `tmp_${Date.now()}`,
@@ -1125,6 +1148,7 @@ const Chat = () => {
             <ChatInput
               onSend={handleSend}
               disabled={streaming || drawingLoading}
+              readOnly={isParentViewingChildConversation}
               isStreaming={streaming}
               onStop={handleStop}
               tokenBalance={tokenBalance}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  AlertCircle,
   Camera,
   Loader2,
   Map,
@@ -16,10 +17,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fetchWithSession } from "@/lib/auth-session";
+import { read } from "fs";
 
 interface ChatInputProps {
   onSend: (text: string, files: File[]) => void;
   disabled?: boolean;
+  readOnly?: boolean;
   isStreaming?: boolean;
   onStop?: () => void;
   tokenBalance?: number;
@@ -32,6 +35,7 @@ interface ChatInputProps {
 const ChatInput = ({
   onSend,
   disabled,
+  readOnly,
   isStreaming,
   onStop,
   tokenBalance,
@@ -255,6 +259,9 @@ const stopRecording = () => {
   }, [text]);
 
   const handleSend = () => {
+    if (readOnly) {
+      return;
+    }
     if ((tokenBalance ?? 0) <= 0) {
       toast.error(t("chatBalanceExpired"));
       return;
@@ -295,7 +302,7 @@ const safeText = text ?? "";
 
   const sendDisabled =
     (tokenBalance ?? 0) <= 0 ||
-    disabled ||
+    disabled || readOnly ||
     (isDrawingUploadStep && files.length === 0) ||
     (isDrawingMessageStep && !safeText.trim() && files.length === 0) ||
     (mode !== "drawing" && !safeText.trim() && files.length === 0);
@@ -303,6 +310,12 @@ const safeText = text ?? "";
   return (
     <div className="sticky bottom-0 bg-gradient-to-t from-background via-background to-background/80 px-3 pb-4 pt-3 sm:px-6">
       <div className="mx-auto max-w-3xl">
+        {readOnly ? (
+          <div className="mb-3 flex items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {t("chatParentChildConversationReadOnly")}
+          </div>
+        ) : null}
         <div className="mb-3 flex flex-wrap items-center gap-2">
           {modeOptions.map((option) => {
             const Icon = option.icon;
@@ -402,6 +415,7 @@ const safeText = text ?? "";
           <button
             type="button"
             onClick={() => imageInputRef.current?.click()}
+            disabled={readOnly}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-all hover:scale-110 hover:bg-primary/10 hover:text-primary"
             aria-label={t("chatUploadImage")}
           >
@@ -417,7 +431,7 @@ const safeText = text ?? "";
               isDrawingUploadStep ? t("chatPlaceholderDrawing") : t("chatPlaceholderDefault")
             }
             rows={1}
-            disabled={disabled || isDrawingUploadStep}
+            disabled={disabled || readOnly || isDrawingUploadStep}
             className="max-h-40 flex-1 resize-none border-0 bg-transparent py-2.5 text-base leading-relaxed outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
           />
 
@@ -440,6 +454,7 @@ const safeText = text ?? "";
             disabled={
               isDrawingUploadStep ||
               disabled ||
+              readOnly ||
               isStreaming ||
               isTranscribing
             }

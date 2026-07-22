@@ -713,5 +713,25 @@
   "Loading story reports":"جار تحميل تقارير القصة",
   "Loading chat report":"جار تحميل تقارير المحادثة",
   "Fetching the latest report data for this child.":"جار جلب أحدث بيانات التقرير لهذا الطفل.",
-  "saving...":"جار الحفظ..."
+  "saving...":"جار الحفظ...",
+  "childAvatar":"صورة الطفل الرمزية",
+  "optional":"اختياري",
+  "childAvatarHint":"ارفع صورة للطفل إذا أردت من التطبيق إنشاء صورة كرتونية رمزية. يمكنك تخطي هذه الخطوة وإنشاء الطفل بشكل طبيعي.",
+  "childAvatarEmptyTitle":"لم يتم اختيار صورة",
+  "childAvatarCurrentSaved":"الصورة الرمزية الحالية",
+  "childAvatarKeepHint":"اتركها كما هي للاحتفاظ بالصورة الحالية، أو ارفع صورة جديدة لاستبدالها.",
+  "childAvatarReplacementReady":"تم اختيار صورة جديدة",
+  "childAvatarReplacementHint":"احفظ التغييرات لاستبدال الصورة الحالية بالصورة الكرتونية الجديدة.",
+  "childAvatarSelectedHint":"احفظ ملف الطفل ليتم إنشاء صورة رمزية كرتونية من هذه الصورة.",
+  "childAvatarUploadAction":"رفع صورة",
+  "childAvatarReplaceAction":"استبدال الصورة",
+  "childAvatarRemoveSelected":"إزالة الصورة المحددة",
+  "childAvatarCurrentPreviewAlt":"الصورة الرمزية الحالية للطفل",
+  "childAvatarNewPreviewAlt":"معاينة الصورة الرمزية الجديدة للطفل",
+  "chatParentChildConversationReadOnly": "هذه محادثة طفلك. يمكنك مشاهدة المحادثة، لكن لا يمكنك إرسال رسائل هنا.",
+  "myFilesEmptyFileTitle": "الملف فارغ",
+  "myFilesEmptyFileMessage": "الملف الذي اخترته فارغ. يرجى اختيار ملف يحتوي على محتوى.",
+   "draft": "مسودة",
+  "published": "منشورة"
+
 }

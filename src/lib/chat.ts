@@ -72,7 +72,10 @@ export const listMessages = async (conversationId: number) => {
     `${import.meta.env.VITE_API_URL}/ask/${conversationId}/messages`,
   );
   const data = await res.json();
-  return data.data.data;
+  return {
+    messages: data.data.data,
+    conversation: data.data.conversation,
+  };
 };
 
 export async function streamChat({

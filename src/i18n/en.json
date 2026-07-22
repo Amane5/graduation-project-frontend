@@ -361,6 +361,20 @@
   "addChildIntro": "Build a profile that helps the app answer at the right reading level, keep topics age-appropriate, and make stories feel personal.",
   "addChildBasicDetailsTitle": "Basic Details",
   "addChildBasicDetailsDescription": "These details appear in child profiles and help tailor the experience.",
+  "childAvatar": "Child Avatar",
+  "optional": "Optional",
+  "childAvatarHint": "Upload a child photo if you want the app to generate a cartoon avatar. You can skip this and create the child normally.",
+  "childAvatarEmptyTitle": "No photo selected",
+  "childAvatarCurrentSaved": "Current avatar",
+  "childAvatarKeepHint": "Leave this as it is to keep the current avatar, or upload a new photo to replace it.",
+  "childAvatarReplacementReady": "New photo selected",
+  "childAvatarReplacementHint": "Save changes to replace the current avatar with this new cartoon avatar.",
+  "childAvatarSelectedHint": "Save the child profile to generate a cartoon avatar from this photo.",
+  "childAvatarUploadAction": "Upload photo",
+  "childAvatarReplaceAction": "Replace photo",
+  "childAvatarRemoveSelected": "Remove selected photo",
+  "childAvatarCurrentPreviewAlt": "Current child avatar",
+  "childAvatarNewPreviewAlt": "New child avatar preview",
   "addChildBirthDateHint": "Children must be between 2 and 17 years old.",
   "addChildLearningPreferencesTitle": "Learning Preferences",
   "addChildLearningPreferencesDescription": "These options shape how stories and answers feel for the child.",
@@ -639,5 +653,11 @@
   "deleteChallengeDescription":"Are you sure you want to delete this challenge?",
   "challengeDeletedSuccess":"Challenge deleted successfully",
   "challengeDeleteFailed":"Failed to delete challenge",
-  "NoChallenges":"No Challenges Found"
+  "NoChallenges":"No Challenges Found",
+  "chatParentChildConversationReadOnly": "This is your child's conversation. You can view it, but you can't send messages here.",
+  "myFilesEmptyFileTitle": "Empty file",
+  "myFilesEmptyFileMessage": "The selected file is empty. Please choose a file that contains content.",
+  "draft": "Draft",
+  "published": "Published"
+
 }

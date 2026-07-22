@@ -52,6 +52,11 @@ type ChatReport = {
   creativityAvg: number;
   analyticalAvg: number;
 
+  curiosityExplanation?: string | null;
+  creativityExplanation?: string | null;
+  analyticalExplanation?: string | null;
+
+
   topCategories: string[];
   topSubcategories: string[];
 
@@ -129,6 +134,15 @@ console.log(res);
   curiosity: Math.round(chatReport?.curiosityAvg || 0),
   creativity: Math.round(chatReport?.creativityAvg || 0),
   analytical: Math.round(chatReport?.analyticalAvg || 0),
+  curiosityExplanation:
+    chatReport?.curiosityExplanation || null,
+
+  creativityExplanation:
+    chatReport?.creativityExplanation || null,
+
+  analyticalExplanation:
+    chatReport?.analyticalExplanation || null,
+
   topCategories: chatReport?.topCategories || [],
   topSubcategories: chatReport?.topSubcategories || [],
   recommendations: chatReport?.recommendations || [],
@@ -325,16 +339,28 @@ console.log(res);
       <div className="bg-card border rounded-2xl p-5">
         <p className="text-sm text-muted-foreground">{t("Curiosity")}</p>
         <h2 className="text-3xl font-bold">{chatStats.curiosity}/5</h2>
+         <p className="mt-3 text-sm text-muted-foreground">
+            {chatStats.curiosityExplanation ||
+              t("No curiosity explanation available yet")}
+          </p>
       </div>
 
       <div className="bg-card border rounded-2xl p-5">
         <p className="text-sm text-muted-foreground">{t("Creativity")}</p>
         <h2 className="text-3xl font-bold">{chatStats.creativity}/5</h2>
+         <p className="mt-3 text-sm text-muted-foreground">
+          {chatStats.creativityExplanation ||
+            t("No creativity explanation available yet")}
+        </p>
       </div>
 
       <div className="bg-card border rounded-2xl p-5">
         <p className="text-sm text-muted-foreground">{t("Analytical")}</p>
         <h2 className="text-3xl font-bold">{chatStats.analytical}/5</h2>
+        <p className="mt-3 text-sm text-muted-foreground">
+          {chatStats.analyticalExplanation ||
+            t("No analytical explanation available yet")}
+        </p>
       </div>
     </div>
 

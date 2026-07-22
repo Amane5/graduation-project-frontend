@@ -379,7 +379,7 @@ export default function ChildrenStories() {
                     </div>
 
                     <div className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
-                      {t("status")}: {story.status}
+                      {t("status")}: {story.status === "DRAFT" ? t("draft") : t("published")}
                     </div>
                   </div>
 
